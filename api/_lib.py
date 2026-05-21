@@ -306,10 +306,10 @@ def _map_seniority_to_pdl(seniority: str) -> str:
         "director":  "director",
         "manager":   "manager",
         "senior":    "senior",
-        "mid":       "entry",
-        "junior":    "training",
+        "mid":       "mid",       # was wrongly "entry" — PDL has a distinct "mid" level
+        "junior":    "entry",     # was "training" — entry is the right PDL enum for junior
     }
-    return mapping.get(seniority, "entry")
+    return mapping.get(seniority, "mid")
 
 
 def _extract_pdl_signals(profiles: list) -> dict:
@@ -598,71 +598,231 @@ def _fetch_url(url: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 
 INDUSTRY_RE = {
-    "tech":        r"software\b|engineer\b|developer\b|devops|data scien|machine learning|\bml\b|\bai\b|cloud|aws|gcp|azure|python|javascript|typescript|react|node\.js|kubernetes|backend|frontend|full.?stack|sre\b|platform engineer",
-    "healthcare":  r"\bnurse\b|\brn\b|\blpn\b|\bphysician\b|\bclinical\b|\bicu\b|\ber\b|\bsurgery\b|\bhospital\b|\bhealthcare\b|\bmedical\b|patient care|\bbsn\b|\badn\b|\bcna\b|radiology|pharmacy",
-    "logistics":   r"\bwarehouse\b|\bfulfillment\b|\bdistribution\b|\blogistics\b|\bdriver\b|\bforklift\b|picker|packer|\bshipping\b|\bfreight\b|supply chain|last.?mile",
-    "retail":      r"\bretail\b|store associate|\bcashier\b|sales associate|shift manager|\bpharma\b",
-    "hospitality": r"\brestaurant\b|\bhotel\b|\bhospitality\b|\bserver\b|\bcook\b|\bchef\b|front desk|housekeeping|barista|concierge",
-    "finance":     r"\bfinance\b|fintech|\bbanking\b|\btrading\b|\baccounting\b|\bcpa\b|\baudit\b|wealth management|investment|financial analyst|actuar",
-    "defense":     r"\bdefense\b|\bclearance\b|\bsecret\b|ts\/sci|\bmissile\b|\bradar\b|\bmilitary\b|\bdod\b|\bdarpa\b|hypersonic|ballistic|aerospace engineer",
-    "marketing":   r"\bmarketing\b|brand strateg|demand gen|growth hacker|content strateg|seo\b|sem\b|paid media|campaign manager|product marketing|social media manager|communications manager",
-    "sales":       r"\bsales\b|account executive|account manager|business development|sdr\b|bdr\b|revenue|quota|closing deals|pipeline|crm",
-    "hr":          r"\brecruiting\b|\brecruitment\b|talent acquisition|hrbp|human resources|\bpeople ops\b|compensation.{0,20}benefits|workforce planning",
+    # tech: require explicit tech keywords — bare 'ai' fires on 'paid', 'training', 'biomedical'
+    "tech":        r"software\b|(?<!\w)engineer(?:ing)?\b|developer\b|devops|data scien|machine learning"
+                   r"|(?<!\w)ml(?!\w)|(?:generative\s+)?ai\s+(?:engineer|model|platform|safety|product)"
+                   r"|cloud(?:\s+engineer|\s+architect)|\baws\b|\bgcp\b|\bazure\b"
+                   r"|\bpython\b|\bjavascript\b|\btypescript\b|\breact\b|node\.js|kubernetes"
+                   r"|backend|frontend|full.?stack|\bsre\b|platform engineer",
+    # healthcare: use specific clinical terms, avoid 'er' alone
+    "healthcare":  r"\bnurse\b|\brn\b|\blpn\b|\bphysician\b|\bclinical\b"
+                   r"|\bicu\b|\bemergency\s+room\b|\bsurgery\b|\bhospital\b"
+                   r"|\bhealthcare\b|\bmedical\b|patient care|\bbsn\b|\badn\b|\bcna\b"
+                   r"|radiology|pharmacy|\bpharmacist\b|therapist\b|emt\b|paramedic",
+    "logistics":   r"\bwarehouse\b|\bfulfillment\b|\bdistribution\b|\blogistics\b"
+                   r"|\bdriver\b|\bforklift\b|picker|packer|\bshipping\b|\bfreight\b"
+                   r"|supply chain|last.?mile",
+    "retail":      r"\bretail\b|store associate|\bcashier\b|sales associate|shift manager",
+    "hospitality": r"\brestaurant\b|\bhotel\b|\bhospitality\b|\bserver\b|\bcook\b"
+                   r"|\bchef\b|front desk|housekeeping|barista|concierge",
+    "finance":     r"\bfinance\b|fintech|\bbanking\b|\btrading\b|\baccounting\b"
+                   r"|\bcpa\b|\baudit\b|wealth management|investment|financial analyst|actuar",
+    # defense: require 'clearance' context around 'secret' to avoid 'secret sauce'
+    "defense":     r"\bdefense\b|(?:security\s+)?clearance\b|secret\s+clearance|ts\/sci"
+                   r"|\bmissile\b|\bradar\b|\bmilitary\b|\bdod\b|\bdarpa\b"
+                   r"|hypersonic|ballistic|aerospace engineer",
+    "marketing":   r"\bmarketing\b|brand strateg|demand gen|growth hacker|content strateg"
+                   r"|\bseo\b|\bsem\b|paid media|campaign manager|product marketing"
+                   r"|social media manager|communications manager",
+    # sales: require B2B signals, not bare 'sales' which fires on retail
+    "sales":       r"account executive|account manager|business development"
+                   r"|\bsdr\b|\bbdr\b|\bquota\b|closing deals|sales pipeline"
+                   r"|revenue\s+target|sales\s+rep\b|inside sales|outside sales",
+    "hr":          r"\brecruiting\b|\brecruitment\b|talent acquisition|hrbp"
+                   r"|human resources|\bpeople ops\b|compensation.{0,20}benefits|workforce planning",
 }
+
+# INDUSTRY_PRIORITY: when scores tie, use this order (higher index = lower priority)
+_INDUSTRY_PRIORITY = ["defense","healthcare","finance","tech","marketing","sales","hr","logistics","retail","hospitality"]
 
 SENIORITY_RE = {
-    "executive": r"vp |vice president|cto|cpo|coo|ceo|chief\s|svp|evp",
-    "director":  r"director of|head of",
-    "manager":   r"\bmanager\b|supervisor|team lead\b",
-    "senior":    r"\bsenior\b|\bstaff\b|principal\b|lead engineer|sr\.",
-    "junior":    r"\bjunior\b|entry.?level|associate engineer|new grad|\bintern\b",
+    # Word boundaries on ALL tokens — cto/cpo/coo/ceo without \b match inside 'director', 'executive', etc.
+    "executive": r"\bvp\b|vice\s+president|\bcto\b|\bcpo\b|\bcoo\b|\bceo\b|chief\s+\w+\s+officer|\bsvp\b|\bevp\b",
+    "director":  r"\bdirector\s+of\b|\bhead\s+of\b",
+    # check senior/staff BEFORE manager so "Senior Manager" → "senior"
+    "senior":    r"\bsenior\b|\bstaff\b|\bprincipal\b|\blead\s+engineer\b|\bsr\.",
+    "manager":   r"\bmanager\b|\bsupervisor\b|\bteam\s+lead\b|\btech\s+lead\b|\bengineering\s+lead\b",
+    # "entry-level" removed — appears in EEO boilerplate for almost every JD, not a reliable seniority signal
+    "junior":    r"\bjunior\b|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:engineer|developer|analyst|position|role)|\bassociate\s+engineer\b|\binternship\b",
 }
 
-SKILL_VOCAB = [
-    "Python","Java","Go","JavaScript","TypeScript","React","Node.js","C++","C#","Rust","Swift",
-    "AWS","GCP","Azure","Kubernetes","Docker","Kafka","Terraform","PostgreSQL","Redis","Spark",
-    "TensorFlow","PyTorch","scikit-learn","SQL","dbt","Snowflake",
-    "RTOS","VxWorks","LynxOS","VHDL","MATLAB","Simulink","DO-178C","MIL-STD-882","ADA",
-    "RF","Radar","EO/IR","MBSE","SysML","JIRA","Confluence",
-    "ACLS","BLS","BSN","ADN","ACLS","IV Therapy","Epic","Cerner",
-    "Spanish","Bilingual","Salesforce","HubSpot","CRM",
+# SKILL_VOCAB: use word-boundary patterns for short/ambiguous names
+# Each entry is (display_name, regex_pattern)
+SKILL_VOCAB_RE = [
+    ("Python",      r"\bPython\b"),
+    ("Java",        r"\bJava\b(?!Script)"),          # exclude JavaScript
+    ("Go",          r"\bGolang\b|\bGo\s+(?:programming|lang|developer|engineer|service|microservice)\b"),  # 'Go' alone too ambiguous
+    ("JavaScript",  r"\bJavaScript\b"),
+    ("TypeScript",  r"\bTypeScript\b"),
+    ("React",       r"\bReact(?:\.js)?\b"),
+    ("Node.js",     r"\bNode\.js\b"),
+    ("C++",         r"\bC\+\+\b"),
+    ("C#",          r"\bC#\b"),
+    ("Rust",        r"\bRust\b"),
+    ("Swift",       r"\bSwift\b"),
+    ("AWS",         r"\bAWS\b"),
+    ("GCP",         r"\bGCP\b"),
+    ("Azure",       r"\bAzure\b"),
+    ("Kubernetes",  r"\bKubernetes\b"),
+    ("Docker",      r"\bDocker\b"),
+    ("Kafka",       r"\bKafka\b"),
+    ("Terraform",   r"\bTerraform\b"),
+    ("PostgreSQL",  r"\bPostgreSQL\b"),
+    ("Redis",       r"\bRedis\b"),
+    ("Spark",       r"\bSpark\b"),
+    ("TensorFlow",  r"\bTensorFlow\b"),
+    ("PyTorch",     r"\bPyTorch\b"),
+    ("scikit-learn",r"\bscikit-learn\b"),
+    ("SQL",         r"\bSQL\b"),
+    ("dbt",         r"\bdbt\b"),
+    ("Snowflake",   r"\bSnowflake\b"),
+    ("RTOS",        r"\bRTOS\b"),
+    ("VxWorks",     r"\bVxWorks\b"),
+    ("LynxOS",      r"\bLynxOS\b"),
+    ("VHDL",        r"\bVHDL\b"),
+    ("MATLAB",      r"\bMATLAB\b"),
+    ("Simulink",    r"\bSimulink\b"),
+    ("DO-178C",     r"\bDO-178C\b"),
+    ("MIL-STD-882", r"\bMIL-STD-882\b"),
+    # "Ada" removed — \bAda\b fires on "ADA" (disability act) in EEO boilerplate
+    ("RF",          r"\bRF\s+(?:engineer|design|circuit|frequency|antenna|transceiver|frontend)\b"),  # "RF system" too broad; require hardware-specific context
+    ("Radar",       r"\bRadar\b"),
+    ("MBSE",        r"\bMBSE\b"),
+    ("SysML",       r"\bSysML\b"),
+    ("JIRA",        r"\bJIRA\b"),
+    ("Confluence",  r"\bConfluence\b"),
+    ("ACLS",        r"\bACLS\b"),
+    ("BLS",         r"\bBLS\b"),
+    ("BSN",         r"\bBSN\b"),
+    ("ADN",         r"\bADN\b"),
+    ("IV Therapy",  r"\bIV Therapy\b"),
+    ("Epic",        r"\bEpic\b(?!\s+Games)"),  # Epic EHR not Epic Games
+    ("Cerner",      r"\bCerner\b"),
+    ("Salesforce",  r"\bSalesforce\b"),
+    ("HubSpot",     r"\bHubSpot\b"),
+    ("CRM",         r"\bCRM\b"),
+    ("Dask",        r"\bDask\b"),
+    ("Hadoop",      r"\bHadoop\b"),
+    ("Scala",       r"\bScala\b"),
 ]
 
 def _detect_industry(text: str) -> str:
     text_lower = text.lower()
-    scores = {ind: len(re.findall(pat, text_lower)) for ind, pat in INDUSTRY_RE.items()}
+    scores = {ind: len(re.findall(pat, text_lower, re.IGNORECASE)) for ind, pat in INDUSTRY_RE.items()}
     scores = {k: v for k, v in scores.items() if v}
-    return max(scores, key=scores.get) if scores else "general"
+    if not scores:
+        return "general"
+    max_score = max(scores.values())
+    winners = [k for k, v in scores.items() if v == max_score]
+    if len(winners) == 1:
+        return winners[0]
+    # Tiebreak by priority order
+    for ind in _INDUSTRY_PRIORITY:
+        if ind in winners:
+            return ind
+    return winners[0]
 
 def _detect_seniority(text: str) -> str:
-    text_lower = text.lower()
-    for level in ("executive", "director", "manager", "senior", "junior"):
-        if re.search(SENIORITY_RE[level], text_lower):
+    """
+    Detect seniority from the JD.
+    IMPORTANT: Executive/director detection is restricted to the first 200 characters
+    (the job title area) to prevent company boilerplate ("Executive Vice President of
+    Care at Genesis HealthCare...") from contaminating a frontline role's seniority.
+    """
+    # Job title = first non-empty line only (prevents "Executive Director of Care at Genesis"
+    # from making a frontline RN look executive-level)
+    first_line = next((ln.strip().lower() for ln in text.split("\n") if len(ln.strip()) > 3), "")
+    title_area = (first_line + " " + text[:200].lower())   # first line + fallback window
+    body_area  = text[:600].lower()                         # broader body for other levels
+
+    # Executive and director: first-line title only
+    for level in ("executive", "director"):
+        if re.search(SENIORITY_RE[level], first_line):
+            return level
+    # Senior, manager, junior: check wider body (up to 600 chars)
+    # senior before manager so "Senior Manager" → "senior"
+    for level in ("senior", "manager", "junior"):
+        if re.search(SENIORITY_RE[level], body_area):
             return level
     return "mid"
 
 def _extract_skills(text: str) -> list:
-    found = [s for s in SKILL_VOCAB if re.search(re.escape(s), text, re.IGNORECASE)]
+    """Extract skills using word-boundary-safe regex patterns."""
+    found = [name for name, pat in SKILL_VOCAB_RE if re.search(pat, text, re.IGNORECASE)]
     return found[:12]
 
 def _extract_salary(text: str) -> str:
+    """
+    Extract salary/compensation from JD.
+    Handles:  $X–$Y  |  $X/hr  |  $Xk–$Yk  |  $X,000–$Y,000/yr
+    For multi-location JDs (McLean $229K vs NY $262K), returns first match.
+    """
     m = re.search(
-        r"\$[\d,]+[k]?\s*[-–—]\s*\$[\d,]+[k]?"
-        r"|\$[\d,]+[k]?\s*/\s*(hr|hour|yr|year)"
-        r"|\$[\d,.]+[k]?\+",
+        # Range with $ on both sides: $229,900 – $262,400 or $30–$45/hr
+        r"\$[\d,]+\.?\d*[k]?\s*[-–—]\s*\$[\d,]+\.?\d*[k]?(?:\s*/\s*(?:hr|hour|yr|year|annually))?"
+        # Single $ with per-unit: $35.50/hr
+        r"|\$[\d,]+\.?\d*[k]?\s*/\s*(?:hr|hour|yr|year|annually)"
+        # Plain $ amount with k: $85k+  or  $85k
+        r"|\$[\d,]+\.?\d*[k]\+?"
+        # Numeric range without $ sign: 85,000–95,000 (requires nearby salary/compensation context)
+        r"|(?:salary|compensation|pay(?:rate)?)\D{0,20}(\d{2,3},\d{3})\s*[-–—]\s*(\d{2,3},\d{3})",
         text, re.IGNORECASE,
     )
-    return m.group(0) if m else "Not specified"
+    if not m:
+        return "Not specified"
+    result = m.group(0)
+    # If a group-based match (numeric range), reconstruct it
+    if m.lastindex and m.lastindex >= 3 and m.group(2) and m.group(3):
+        result = f"${m.group(2)} – ${m.group(3)}"
+    return result.strip()
+
+_US_STATES = (
+    r"Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|"
+    r"Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|"
+    r"Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|"
+    r"Nebraska|Nevada|New\s+Hampshire|New\s+Jersey|New\s+Mexico|New\s+York|"
+    r"North\s+Carolina|North\s+Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|"
+    r"Rhode\s+Island|South\s+Carolina|South\s+Dakota|Tennessee|Texas|Utah|"
+    r"Vermont|Virginia|Washington|West\s+Virginia|Wisconsin|Wyoming"
+)
 
 def _extract_location(text: str) -> str:
-    m = re.search(r"(?:in|at|–|-)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)?,?\s?[A-Z]{2})", text)
+    """
+    Extract city/state from JD text.
+    Supports both abbreviated states (McLean, VA) and full names (Orono, Maine).
+    Falls back to "Not specified" — NOT "On-site" (that is work arrangement, not location).
+    For multiple locations (McLean, VA or New York, NY), returns the first match.
+    """
+    # Pattern: require preposition or separator before city to avoid matching job titles.
+    # Supports: "in McLean, VA"  "at Orono, Maine"  "– McLean, VA"  "based in Orono, Maine"
+    # Full state names BEFORE [A-Z]{2} to prevent 'Ma' matching inside 'Machine'
+    state_pat = rf"(?:{_US_STATES}|[A-Z]{{2}})\b"
+    # First pass: require context (preposition / em-dash / hyphen)
+    m = re.search(
+        rf"(?:in|at|[–\-]|based\s+in|located\s+in)\s+([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)*,\s*{state_pat})",
+        text,
+        re.IGNORECASE,
+    )
     if m:
-        return m.group(1)
+        loc = m.group(1).strip()
+        city_part = loc.split(",")[0].strip()
+        if len(city_part) >= 3:
+            return loc
+    # Second pass: bare "City, State" if preceded by whitespace/start of field (no preposition)
+    m = re.search(
+        rf"(?<!\w)([A-Z][a-z][a-zA-Z'-]{{1,}}(?:\s+[A-Z][a-zA-Z'-]+)*,\s*{state_pat})",
+        text,
+    )
+    if m:
+        loc = m.group(1).strip()
+        city_part = loc.split(",")[0].strip()
+        if len(city_part) >= 3:
+            return loc
     if re.search(r"fully remote|100% remote|work from home|wfh", text, re.IGNORECASE):
         return "Remote"
-    if re.search(r"hybrid", text, re.IGNORECASE):
+    if re.search(r"\bhybrid\b", text, re.IGNORECASE):
         return "Hybrid"
-    return "On-site"
+    return "Not specified"
 
 def _detect_arrangement(text: str) -> str:
     if re.search(r"fully remote|100% remote|work from home|wfh", text, re.IGNORECASE):
@@ -673,10 +833,25 @@ def _detect_arrangement(text: str) -> str:
 
 def _detect_flags(text: str) -> dict:
     return {
-        "clearance":  bool(re.search(r"clearance|secret\b|ts\/sci|dod\b", text, re.IGNORECASE)),
-        "bilingual":  bool(re.search(r"bilingual|spanish.*english|english.*spanish|fluent.*spanish", text, re.IGNORECASE)),
-        "veteran":    bool(re.search(r"veteran|military|service member|reservist|skillbridge", text, re.IGNORECASE)),
-        "campus":     bool(re.search(r"intern|co.?op|new grad|recent grad|entry.?level", text, re.IGNORECASE)),
+        "clearance":  bool(re.search(
+            r"security\s+clearance|secret\s+clearance|ts\/sci|top\s+secret|dod\s+clearance"
+            r"|active\s+clearance|clearance\s+required|must\s+have\s+clearance",
+            text, re.IGNORECASE)),
+        "bilingual":  bool(re.search(
+            r"bilingual|spanish.*english|english.*spanish|fluent.*spanish|spanish\s+required",
+            text, re.IGNORECASE)),
+        # veteran: only flag when veterans/military experience is a job REQUIREMENT or preference,
+        # not mere EEO boilerplate ("veterans encouraged to apply" → NOT flagged)
+        "veteran":    bool(re.search(
+            r"skillbridge|military\s+(?:experience|background|service)\s+(?:preferred|required|a plus)"
+            r"|veteran\s+(?:preferred|required|status\s+preferred)"
+            r"|dod\s+(?:experience|background)|security\s+clearance\s+required",
+            text, re.IGNORECASE)),
+        # campus: only flag if this is explicitly a campus/intern/new-grad role, not if "intern" appears in EEO
+        "campus":     bool(re.search(
+            r"\binternship\b|\bco-?op\b|new\s+grad(?:uate)?\s+(?:program|hire|role|position)"
+            r"|campus\s+recruit|recent\s+graduate",
+            text, re.IGNORECASE)),
     }
 
 
@@ -751,14 +926,36 @@ Return ONLY valid JSON — no markdown fences, no commentary:
 
 
 def _detect_role_type(text: str) -> str:
-    """Detect whether this is a people manager or individual contributor role."""
-    mgr = bool(re.search(
-        r"manage[sd]?\s+(?:a\s+)?team|direct reports?|people manager|hiring manager|"
-        r"build (?:and grow )?(?:the )?team|grow the team|team of engineers|lead (?:and mentor|a team)|"
-        r"manage engineers|manage (?:a )?group|org leader|people leadership|mentor and coach",
-        text, re.IGNORECASE
+    """
+    Detect whether this is a people manager or individual contributor role.
+    First checks the job title area (first 200 chars) for "Manager", "Director",
+    "Head of", "VP" which almost always implies people management.
+    Then checks the body for explicit management responsibility language.
+    """
+    # Use ONLY the first non-empty line as the job title — prevents company org descriptions
+    # (e.g. "Executive Director of Care at Genesis") from contaminating frontline roles
+    first_line = next((ln.strip() for ln in text.split("\n") if len(ln.strip()) > 3), text[:80])
+    body = text
+
+    # Title-level signals: Manager/Director/VP/Head in the job title = people manager
+    title_mgr = bool(re.search(
+        r"\bmanager\b|\bdirector\b|\bvp\b|vice\s+president|\bhead\s+of\b|\bvp,\b",
+        first_line, re.IGNORECASE
     ))
-    return "people_manager" if mgr else "individual_contributor"
+    # Body signals: explicit management responsibility described in JD
+    body_mgr = bool(re.search(
+        r"manage[sd]?\s+(?:a\s+)?team|direct\s+reports?|people\s+manager|hiring\s+manager"
+        r"|build\s+(?:and\s+grow\s+)?(?:the\s+)?team|grow\s+the\s+team"
+        r"|team\s+of\s+\d+\s+(?:engineers?|people|employees?|professionals?)"
+        r"|lead\s+(?:and\s+mentor|a\s+team)|manage\s+engineers?"
+        r"|manage\s+(?:a\s+)?group|org\s+leader|people\s+leadership"
+        r"|mentor\s+and\s+coach|engineering\s+lead\b"
+        r"|chapter\s+lead\b|squad\s+lead\b|people\s+management\s+responsibilit"
+        r"|owns?\s+headcount|cross.functional\s+leader|manage\s+\d+\s+engineer"
+        r"|oversee[sd]?\s+(?:a\s+)?team|responsible\s+for\s+(?:a\s+)?team",
+        body, re.IGNORECASE
+    ))
+    return "people_manager" if (title_mgr or body_mgr) else "individual_contributor"
 
 
 def _build_llm_prompt(signals: dict) -> str:
@@ -797,10 +994,25 @@ def _build_llm_prompt(signals: dict) -> str:
 
 
 def _parse_llm_json(text: str) -> dict:
-    """Strip markdown fences and parse JSON from LLM response."""
-    text = re.sub(r"^```(?:json)?\n?", "", text.strip())
-    text = re.sub(r"\n?```$", "", text)
-    return json.loads(text)
+    """
+    Strip markdown fences and parse JSON from LLM response.
+    Falls back to regex extraction if the model wraps JSON in commentary.
+    Also normalises disc_type to a valid single uppercase letter.
+    """
+    text = text.strip()
+    # Remove markdown fences
+    text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+    text = re.sub(r"\n?\s*```\s*$", "", text)
+    # If JSON is embedded in prose, extract the first {...} block
+    if not text.startswith("{"):
+        m = re.search(r"\{[\s\S]*\}", text)
+        if m:
+            text = m.group(0)
+    data = json.loads(text)
+    # Normalise disc_type: must be single uppercase letter in {D,I,S,C}
+    disc = str(data.get("disc_type", "S")).strip().upper()
+    data["disc_type"] = disc[0] if disc and disc[0] in "DISC" else "S"
+    return data
 
 
 def _call_openai_compat(api_key: str, base_url: str, model: str, prompt: str) -> dict:
@@ -811,6 +1023,7 @@ def _call_openai_compat(api_key: str, base_url: str, model: str, prompt: str) ->
         json={
             "model": model,
             "max_tokens": 1800,
+            "temperature": 0.2,    # Low but non-zero: deterministic DISC while still allowing JD-specific variation
             "messages": [
                 {"role": "system", "content": PERSONA_SYSTEM},
                 {"role": "user",   "content": prompt},
@@ -834,6 +1047,7 @@ def _call_anthropic(api_key: str, model: str, prompt: str) -> dict:
         json={
             "model": model,
             "max_tokens": 1800,
+            "temperature": 0.2,
             "system": PERSONA_SYSTEM,
             "messages": [{"role": "user", "content": prompt}],
         },
@@ -850,7 +1064,7 @@ def _call_gemini(api_key: str, prompt: str) -> dict:
         headers={"Content-Type": "application/json"},
         json={
             "contents": [{"parts": [{"text": PERSONA_SYSTEM + "\n\n" + prompt}]}],
-            "generationConfig": {"maxOutputTokens": 1800, "temperature": 0.7},
+            "generationConfig": {"maxOutputTokens": 1800, "temperature": 0.2},
         },
         timeout=LLM_TIMEOUT,
     )
@@ -1131,11 +1345,16 @@ def _rule_based_messaging(disc_type: str, industry: str, role: str) -> list:
     """Generate 3 DISC-calibrated messaging variants (ready-to-deploy ad copy)."""
 
     industry_noun = {
-        "tech":       ("engineering", "systems", "engineers"),
-        "healthcare": ("clinical", "patient care", "clinicians"),
-        "defense":    ("defense", "mission-critical systems", "engineers"),
-        "logistics":  ("operations", "supply chain", "operators"),
-        "finance":    ("finance", "financial systems", "analysts"),
+        "tech":        ("engineering",   "systems",              "engineers"),
+        "healthcare":  ("clinical",      "patient care",         "clinicians"),
+        "defense":     ("defense",       "mission-critical systems", "engineers"),
+        "logistics":   ("operations",    "supply chain",         "operators"),
+        "finance":     ("finance",       "financial systems",    "analysts"),
+        "marketing":   ("marketing",     "campaigns and pipeline","marketers"),
+        "sales":       ("sales",         "deals and pipeline",   "account executives"),
+        "hr":          ("people ops",    "talent systems",       "HR professionals"),
+        "retail":      ("retail",        "customer experience",  "associates"),
+        "hospitality": ("hospitality",   "guest experience",     "hospitality professionals"),
     }.get(industry, ("work", "your domain", "professionals"))
 
     variants_by_disc: dict[str, list] = {
@@ -1351,7 +1570,20 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
 
     li = li_signals or {}
 
-    sparktoro_query = f"{seniority} {industry} engineer" if industry != "general" else f"{seniority} professional"
+    # Build role-appropriate queries — "mid healthcare engineer" is a nonsense audience
+    _SPARKTORO_QUERY = {
+        "tech":        f"{seniority} software engineer OR developer",
+        "healthcare":  f"{seniority} nurse OR clinical professional",
+        "defense":     f"{seniority} defense engineer OR cleared professional",
+        "logistics":   f"{seniority} warehouse OR logistics professional",
+        "marketing":   f"{seniority} marketing manager OR growth marketer",
+        "sales":       f"{seniority} account executive OR sales professional",
+        "hr":          f"{seniority} recruiter OR talent acquisition professional",
+        "finance":     f"{seniority} financial analyst OR accountant",
+        "retail":      f"{seniority} retail associate OR store manager",
+        "hospitality": f"{seniority} hospitality professional",
+    }
+    sparktoro_query = _SPARKTORO_QUERY.get(industry, f"{seniority} professional")
 
     # ── Sources 1-3: Run SparkToro / PDL / Lightcast IN PARALLEL ──────────
     #    Sequential calls would add up to 30s; parallelising keeps p99 < 12s.
@@ -1368,7 +1600,19 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         )
 
     def _fetch_lightcast():
-        return _lightcast_skills_demand(title=f"{seniority} {industry} engineer")
+        _LIGHTCAST_TITLE = {
+            "tech":        f"{seniority} software engineer",
+            "healthcare":  f"{seniority} registered nurse",
+            "defense":     f"{seniority} defense systems engineer",
+            "logistics":   f"{seniority} supply chain analyst",
+            "marketing":   f"{seniority} marketing manager",
+            "sales":       f"{seniority} account executive",
+            "hr":          f"{seniority} recruiter",
+            "finance":     f"{seniority} financial analyst",
+            "retail":      f"{seniority} retail manager",
+            "hospitality": f"{seniority} hospitality manager",
+        }
+        return _lightcast_skills_demand(title=_LIGHTCAST_TITLE.get(industry, f"{seniority} professional"))
 
     with ThreadPoolExecutor(max_workers=3) as pool:
         st_fut = pool.submit(_fetch_sparktoro)
