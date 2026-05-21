@@ -827,9 +827,11 @@ def _extract_location(text: str) -> str:
 def _detect_arrangement(text: str) -> str:
     if re.search(r"fully remote|100% remote|work from home|wfh", text, re.IGNORECASE):
         return "Fully remote"
-    if re.search(r"hybrid", text, re.IGNORECASE):
+    if re.search(r"\bhybrid\b", text, re.IGNORECASE):
         return "Hybrid"
-    return "On-site"
+    if re.search(r"\bon.?site\b|\bin.?office\b|in\s+person\b|on\s+location\b", text, re.IGNORECASE):
+        return "On-site"
+    return "Not specified"
 
 def _detect_flags(text: str) -> dict:
     return {
@@ -963,7 +965,19 @@ def _build_llm_prompt(signals: dict) -> str:
     role_type = signals.get("role_type", "individual_contributor")
     role_type_label = "PEOPLE MANAGER (manages a team, has direct reports)" if role_type == "people_manager" else "INDIVIDUAL CONTRIBUTOR (no direct reports)"
 
-    parts = [
+    parts = []
+    # Variant instruction (for multi-persona generation)
+    if signals.get("persona_variant") == 2:
+        first = signals.get("first_persona_summary", "the first persona")
+        parts.append(
+            f"VARIATION REQUIREMENT: Generate an ALTERNATIVE candidate archetype for the same role.\n"
+            f"The first persona was: {first}.\n"
+            f"Your new persona MUST have: a different DISC type, different career background, "
+            f"different primary motivation, and a different archetype name. "
+            f"Do not repeat any field values from the first persona."
+        )
+
+    parts += [
         f"Role type: {role_type_label}",
         f"Industry: {signals['industry']}",
         f"Seniority: {signals['seniority']}",
@@ -1084,6 +1098,7 @@ def _call_cohere(api_key: str, prompt: str) -> dict:
                 {"role": "user",   "content": prompt},
             ],
             "max_tokens": 1800,
+            "temperature": 0.2,
         },
         timeout=LLM_TIMEOUT,
     )
@@ -1157,6 +1172,8 @@ def _generate_persona_llm(signals: dict) -> dict:
                 )
             if "job_quality_issues" not in persona:
                 persona["job_quality_issues"] = []
+            persona["_llm_provider"] = name
+            persona["_used_fallback"] = False
             logger.info(f"Persona generated via {name}")
             return persona
         except Exception as e:
@@ -1164,7 +1181,10 @@ def _generate_persona_llm(signals: dict) -> dict:
             continue
 
     logger.warning("All LLM providers failed — falling back to rule-based persona")
-    return _rule_based_persona(signals)
+    p = _rule_based_persona(signals)
+    p["_llm_provider"] = "rule_based"
+    p["_used_fallback"] = True
+    return p
 
 
 def _rule_based_persona(signals: dict) -> dict:
@@ -1259,8 +1279,12 @@ def _score_jd_quality(text: str) -> dict:
     word_count = len(text.split())
 
     # ── Salary (largest single factor: +3x applies) ──────────────────────────
+    # Note: avoid matching "401k" (retirement benefit) as a salary indicator.
     has_salary = bool(re.search(
-        r'\$[\d,]+[k]?|\d{2,3}[k]\s*/\s*(?:yr|year|hr|hour)|salary range|compensation range|total comp',
+        r'\$[\d,]+\.?\d*[k]?'                              # $85,000 or $85k or $35.50
+        r'|\bsalary\s+(?:range|of|is)\b'                   # "salary range" / "salary of"
+        r'|\bcompensation\s+range\b|\btotal\s+comp\b'       # "compensation range" / "total comp"
+        r'|(?:salary|pay(?:rate)?|compensation)\D{0,30}\d{2,3},\d{3}',  # "salary: 85,000"
         text_lower
     ))
     if not has_salary:
@@ -1548,6 +1572,32 @@ def _get_ad_strategy(industry: str, bilingual: bool = False) -> list:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 9b. SMART JD EXCERPT EXTRACTION
+#     Find the most signal-rich section of the JD (Requirements, Responsibilities)
+#     rather than naïvely taking the first 900 chars (which is often job title +
+#     company boilerplate, not the actual requirements).
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _extract_jd_excerpt(text: str, max_chars: int = 1000) -> str:
+    """
+    Return the most signal-rich excerpt for LLM grounding.
+    Prefers the Requirements / Responsibilities / Qualifications section.
+    Falls back to the first max_chars characters.
+    """
+    section_pat = re.compile(
+        r"(?:requirements?|qualifications?|responsibilities|what you.?ll do"
+        r"|what we.?re looking for|about the role|job duties|key duties"
+        r"|minimum qualifications?|preferred qualifications?|your role)",
+        re.IGNORECASE,
+    )
+    m = section_pat.search(text)
+    if m and len(text) - m.start() >= 200:
+        excerpt = text[m.start():]
+        return excerpt[:max_chars].strip()
+    return text[:max_chars].strip()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 10. CORE BUILD FUNCTION — Multi-source, ITSMA ≥3 sources
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1564,8 +1614,8 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     location    = _extract_location(text)
     arrangement = _detect_arrangement(text)
     flags       = _detect_flags(text)
-    # First 900 chars of actual JD text — grounds the LLM, prevents hallucination
-    jd_excerpt  = text[:900].strip()
+    # Smart excerpt: prefer Requirements/Responsibilities section, else first 1000 chars
+    jd_excerpt  = _extract_jd_excerpt(text, max_chars=1000)
     jd_quality  = _score_jd_quality(text)
 
     li = li_signals or {}
@@ -1650,17 +1700,41 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "sparktoro_subreddits":sparktoro.get("subreddits", [])[:4],
     }
 
-    persona = _generate_persona_llm(signal_dict)
+    # ── Persona generation: 2 personas for complex/senior/manager roles ──────
+    is_complex = (role_type == "people_manager" or seniority in ("senior", "executive", "director"))
+
+    # Primary persona
+    p1_signals = {**signal_dict, "persona_variant": 1}
+    p1 = _generate_persona_llm(p1_signals)
+    personas_list = [p1]
+
+    if is_complex:
+        # Secondary persona — contrasting archetype for the same role
+        p2_signals = {
+            **signal_dict,
+            "persona_variant": 2,
+            "first_persona_summary": f"{p1.get('name','?')} · DISC:{p1.get('disc_type','?')} · {p1.get('profile','')[:80]}",
+        }
+        p2 = _generate_persona_llm(p2_signals)
+        personas_list.append(p2)
 
     # ── Channel recommendations (SparkToro-informed) ──────────────────────
     flags_list = [k for k, v in flags.items() if v]
     channels = _channel_recs_from_sparktoro(sparktoro, industry, flags_list)
 
-    # Ensure messaging_variants always present
-    if not persona.get("messaging_variants"):
-        persona["messaging_variants"] = _rule_based_messaging(
-            persona.get("disc_type", "S"), industry, persona.get("role", "Professional")
-        )
+    # Ensure messaging_variants always present on all personas
+    for p in personas_list:
+        if not p.get("messaging_variants"):
+            p["messaging_variants"] = _rule_based_messaging(
+                p.get("disc_type", "S"), industry, p.get("role", "Professional")
+            )
+
+    # ── Feedback loop: surface fallback status ────────────────────────────
+    used_fallback = any(p.get("_used_fallback") for p in personas_list)
+    llm_provider  = next(
+        (p.get("_llm_provider") for p in personas_list if not p.get("_used_fallback")),
+        "rule_based"
+    )
 
     return {
         "source":         source_label,
@@ -1668,21 +1742,26 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "itsma_validated":len(sources_used) >= 3,
         "industry":       industry,
         "jd_quality":     jd_quality,
-        "personas": [{
-            **persona,
-            "skills":     skills,
-            "publishers": [c["name"] for c in channels],
-            "attributes": {
-                "seniority":       seniority,
-                "work_arrangement":arrangement,
-                "salary":          salary,
-                "location":        location,
-                **flags,
-            },
-            "pdl_signals":    pdl_signals,
-            "lightcast":      lightcast,
-            "sparktoro":      sparktoro,
-        }],
+        "llm_provider":   llm_provider,
+        "used_fallback":  used_fallback,
+        "personas": [
+            {
+                **p,
+                "skills":     skills,
+                "publishers": [c["name"] for c in channels],
+                "attributes": {
+                    "seniority":       seniority,
+                    "work_arrangement":arrangement,
+                    "salary":          salary,
+                    "location":        location,
+                    **flags,
+                },
+                "pdl_signals":    pdl_signals,
+                "lightcast":      lightcast,
+                "sparktoro":      sparktoro,
+            }
+            for p in personas_list
+        ],
         "channels":    channels,
         "competitive": _get_competitive(industry),
         "ad_strategy": _get_ad_strategy(industry, bilingual=flags.get("bilingual", False)),
@@ -1729,7 +1808,7 @@ def handle_analyze_jd(body: dict) -> dict:
         if not text:
             return {"error": f"Could not fetch content from {url}"}, 502
 
-    cache_key = _cache_key("jd_text", text[:400])
+    cache_key = _cache_key("jd_text", text[:2000])
     if cached := _l1_get(cache_key):
         return cached
 

@@ -738,6 +738,37 @@ function LinkedInSignals({ signals }) {
   );
 }
 
+// ─── localStorage history ─────────────────────────────────────────────────────
+const HISTORY_KEY = "nova_persona_history";
+const HISTORY_MAX = 5;
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveToHistory(result) {
+  try {
+    const prev = loadHistory();
+    const entry = {
+      id: Date.now(),
+      label: result.company_name || result.personas?.[0]?.role || "Persona",
+      industry: result.industry,
+      personaCount: result.personas?.length || 1,
+      savedAt: new Date().toLocaleString(),
+      result,
+    };
+    const updated = [entry, ...prev].slice(0, HISTORY_MAX);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
+  }
+}
+
 // ─── Export ────────────────────────────────────────────────────────────────────
 function exportHtmlReport(result) {
   if (!result) return;
@@ -797,7 +828,14 @@ export default function PersonaBuilder() {
   const [result, setResult]         = useState(null);
   const [selPersona, setSelPersona] = useState(0);
   const [selTab, setSelTab]         = useState("personas");
+  const [history, setHistory]       = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
   const textareaRef = useRef(null);
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
 
   useEffect(() => {
     const handler = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !loading) run(); };
@@ -830,6 +868,9 @@ export default function PersonaBuilder() {
       setLoadingPct(100);
       if (data.personas) data.personas = data.personas.map((p, i) => ({ ...p, color: PERSONA_COLORS[i % PERSONA_COLORS.length] }));
       setResult(data); setSelPersona(0); setSelTab("personas");
+      // Save to localStorage history
+      const updated = saveToHistory(data);
+      setHistory(updated);
     } catch (e) { setError(e.message || "Something went wrong."); }
     finally { clearInterval(interval); setLoading(false); setLoadingStep(""); setLoadingPct(0); }
   }, [src, jdText, jdUrl, careersUrl, liUrl, liCareers]);
@@ -853,8 +894,51 @@ export default function PersonaBuilder() {
             <p style={{ color: B.slateGray }} className="text-xs">Candidate archetypes · DISC ad copy · Channel recs · Competitive intel</p>
           </div>
         </div>
-        <span style={{ background: B.irisLight, color: B.iris, border: `1px solid ${B.iris}30` }} className="text-[10px] px-2 py-0.5 rounded-full font-semibold">Nova AI Suite</span>
+        <div className="flex items-center gap-2">
+          {history.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              style={{ border: `1px solid ${B.platinum}`, color: showHistory ? B.iris : B.slateGray, background: showHistory ? B.irisLight : "transparent" }}
+              className="text-[10px] px-3 py-1.5 rounded-xl transition-all"
+            >
+              History ({history.length})
+            </button>
+          )}
+          <span style={{ background: B.irisLight, color: B.iris, border: `1px solid ${B.iris}30` }} className="text-[10px] px-2 py-0.5 rounded-full font-semibold">Nova AI Suite</span>
+        </div>
       </div>
+
+      {/* History panel */}
+      {showHistory && history.length > 0 && (
+        <div style={{ background: B.white, border: `1px solid ${B.platinum}` }} className="rounded-2xl p-4 mb-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p style={{ color: B.pennBlue }} className="text-sm font-semibold">Recent analyses</p>
+            <button
+              onClick={() => { localStorage.removeItem(HISTORY_KEY); setHistory([]); setShowHistory(false); }}
+              style={{ color: B.error }} className="text-[10px] hover:opacity-70"
+            >Clear all</button>
+          </div>
+          <div className="space-y-2">
+            {history.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => {
+                  const colored = { ...entry.result, personas: (entry.result.personas || []).map((p, i) => ({ ...p, color: PERSONA_COLORS[i % PERSONA_COLORS.length] })) };
+                  setResult(colored); setSelPersona(0); setSelTab("personas"); setShowHistory(false);
+                }}
+                style={{ border: `1px solid ${B.platinum}`, background: B.antiFlash }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:opacity-80 transition-all"
+              >
+                <div>
+                  <p style={{ color: B.pennBlue }} className="text-xs font-semibold">{entry.label}</p>
+                  <p style={{ color: B.slateGray }} className="text-[10px]">{entry.industry} · {entry.personaCount} persona{entry.personaCount !== 1 ? "s" : ""}</p>
+                </div>
+                <p style={{ color: B.frenchGray }} className="text-[10px] flex-shrink-0 ml-3">{entry.savedAt}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input card */}
       <div style={{ background: B.white, border: `1px solid ${B.platinum}` }} className="rounded-2xl p-5 mb-5 shadow-sm">
@@ -958,9 +1042,16 @@ export default function PersonaBuilder() {
             </p>
             <Badge variant="iris">{personas.length} persona{personas.length !== 1 ? "s" : ""} · {result.source?.replace(/_/g, " ")}</Badge>
             {result.itsma_validated && <Badge variant="success">✓ ITSMA validated</Badge>}
+            {result.used_fallback && (
+              <Badge variant="orange">⚠ Rule-based fallback</Badge>
+            )}
+            {result.llm_provider && !result.used_fallback && (
+              <Badge variant="default">{result.llm_provider}</Badge>
+            )}
             {result.sources_used?.length > 0 && <SourceConfidenceBadge sources={result.sources_used} />}
             <div className="ml-auto flex gap-2">
-              <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all" onClick={() => exportHtmlReport(result)}>Export report</button>
+              <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all" onClick={() => exportHtmlReport(result)}>Export HTML</button>
+              <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all" onClick={() => window.print()}>Print / PDF</button>
               <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all"
                 onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })); a.download = `nova_personas_${Date.now()}.json`; a.click(); }}>
                 Export JSON
