@@ -738,6 +738,25 @@ function LinkedInSignals({ signals }) {
   );
 }
 
+// ─── Shareable link (compress → base64 → URL hash) ───────────────────────────
+async function encodeResultToHash(result) {
+  const json = JSON.stringify(result);
+  const bytes = new TextEncoder().encode(json);
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  const buf = await new Response(stream).arrayBuffer();
+  // base64url-safe encoding (no +/= issues in URLs)
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function decodeHashToResult(hash) {
+  const b64 = hash.replace(/-/g, "+").replace(/_/g, "/");
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const text = await new Response(stream).text();
+  return JSON.parse(text);
+}
+
 // ─── localStorage history ─────────────────────────────────────────────────────
 const HISTORY_KEY = "nova_persona_history";
 const HISTORY_MAX = 5;
@@ -828,13 +847,31 @@ export default function PersonaBuilder() {
   const [result, setResult]         = useState(null);
   const [selPersona, setSelPersona] = useState(0);
   const [selTab, setSelTab]         = useState("personas");
-  const [history, setHistory]       = useState([]);
+  const [history, setHistory]         = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [linkCopied, setLinkCopied]   = useState(false);
   const textareaRef = useRef(null);
 
-  // Load history from localStorage on mount
+  // On mount: load history AND restore shared result from URL hash if present
   useEffect(() => {
     setHistory(loadHistory());
+    const hash = window.location.hash.slice(1);   // strip leading #
+    if (hash && hash.length > 20) {
+      decodeHashToResult(hash)
+        .then((decoded) => {
+          if (decoded?.personas) {
+            const colored = {
+              ...decoded,
+              personas: decoded.personas.map((p, i) => ({ ...p, color: PERSONA_COLORS[i % PERSONA_COLORS.length] })),
+              _from_share: true,
+            };
+            setResult(colored);
+            setSelPersona(0);
+            setSelTab("personas");
+          }
+        })
+        .catch(() => {/* malformed hash — ignore */});
+    }
   }, []);
 
   useEffect(() => {
@@ -849,8 +886,24 @@ export default function PersonaBuilder() {
     setResult(colored); setSelPersona(0); setSelTab("personas");
   };
 
+  const copyShareLink = useCallback(async () => {
+    if (!result) return;
+    try {
+      const hash = await encodeResultToHash(result);
+      const url = `${window.location.origin}${window.location.pathname}#${hash}`;
+      window.history.replaceState(null, "", `#${hash}`);
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch (e) {
+      console.error("Share link failed:", e);
+    }
+  }, [result]);
+
   const run = useCallback(async () => {
     setError(""); setLoading(true); setResult(null); setLoadingPct(5);
+    // Clear any shared-link hash so fresh results don't inherit it
+    if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
     const steps = src === "jd"
       ? ["Parsing job description…", "Running SparkToro lookup…", "Querying People Data Labs…", "Generating persona via Claude…", "Building channel recs…"]
       : src === "url"
@@ -1034,6 +1087,15 @@ export default function PersonaBuilder() {
       {/* Results */}
       {result && (
         <>
+          {/* Shared-link banner */}
+          {result._from_share && (
+            <div style={{ background: B.irisLight, border: `1px solid ${B.iris}30` }} className="rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-between">
+              <p style={{ color: B.iris }} className="text-xs font-medium">📎 Viewing a shared persona — run your own JD to generate a fresh one</p>
+              <button onClick={() => { setResult(null); window.history.replaceState(null, "", window.location.pathname); }}
+                style={{ color: B.iris }} className="text-[10px] underline ml-3 flex-shrink-0">Dismiss</button>
+            </div>
+          )}
+
           {jdQuality && <JdQualityCard quality={jdQuality} />}
 
           <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -1050,6 +1112,17 @@ export default function PersonaBuilder() {
             )}
             {result.sources_used?.length > 0 && <SourceConfidenceBadge sources={result.sources_used} />}
             <div className="ml-auto flex gap-2">
+              <button
+                onClick={copyShareLink}
+                style={{
+                  border: `1px solid ${linkCopied ? B.success : B.iris}`,
+                  color: linkCopied ? B.success : B.iris,
+                  background: linkCopied ? B.successL : B.irisLight,
+                }}
+                className="text-xs rounded-xl px-3 py-1.5 hover:opacity-80 transition-all font-medium"
+              >
+                {linkCopied ? "✓ Link copied!" : "🔗 Copy link"}
+              </button>
               <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all" onClick={() => exportHtmlReport(result)}>Export HTML</button>
               <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all" onClick={() => window.print()}>Print / PDF</button>
               <button style={{ border: `1px solid ${B.platinum}`, color: B.slateGray }} className="text-xs rounded-xl px-3 py-1.5 hover:opacity-70 transition-all"
