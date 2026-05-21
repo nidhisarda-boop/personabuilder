@@ -64,6 +64,16 @@ DEEPSEEK_KEY       = os.environ.get("DEEPSEEK_API_KEY", "")
 GROQ_KEY           = os.environ.get("GROQ_API_KEY", "")
 GEMINI_KEY         = os.environ.get("GEMINI_API_KEY", "")
 OPENAI_KEY         = os.environ.get("OPENAI_API_KEY", "")
+MISTRAL_KEY        = os.environ.get("MISTRAL_API_KEY", "")
+TOGETHER_KEY       = os.environ.get("TOGETHER_API_KEY", "")
+FIREWORKS_KEY      = os.environ.get("FIREWORKS_API_KEY", "")
+CEREBRAS_KEY       = os.environ.get("CEREBRAS_API_KEY", "")
+SAMBANOVA_KEY      = os.environ.get("SAMBANOVA_API_KEY", "")
+PERPLEXITY_KEY     = os.environ.get("PERPLEXITY_API_KEY", "")
+OPENROUTER_KEY     = os.environ.get("OPENROUTER_API_KEY", "")
+NVIDIA_KEY         = os.environ.get("NVIDIA_API_KEY", "")
+XAI_KEY            = os.environ.get("XAI_API_KEY", "")
+COHERE_KEY         = os.environ.get("COHERE_API_KEY", "")
 APIFY_KEY          = os.environ.get("APIFY_API_KEY", "")
 
 CLAUDE_MODEL       = "claude-haiku-4-5"
@@ -826,30 +836,79 @@ def _call_gemini(api_key: str, prompt: str) -> dict:
     return _parse_llm_json(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
 
 
+def _call_cohere(api_key: str, prompt: str) -> dict:
+    """Cohere Chat API caller (different request/response shape)."""
+    resp = requests.post(
+        "https://api.cohere.com/v2/chat",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": "command-r-plus-08-2024",
+            "messages": [
+                {"role": "system", "content": PERSONA_SYSTEM},
+                {"role": "user",   "content": prompt},
+            ],
+            "max_tokens": 1800,
+        },
+        timeout=LLM_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _parse_llm_json(resp.json()["message"]["content"][0]["text"])
+
+
 def _generate_persona_llm(signals: dict) -> dict:
     """
-    Call the best available LLM to generate a persona.
-    Provider priority (first key found wins):
-      1. DeepSeek-V3  (DEEPSEEK_API_KEY)   — cheap, excellent reasoning
-      2. Groq/Llama-3.3-70B (GROQ_API_KEY) — free tier, very fast
-      3. Google Gemini 2.0 Flash (GEMINI_API_KEY) — free tier
-      4. OpenAI GPT-4o-mini  (OPENAI_API_KEY)
-      5. Anthropic Claude Haiku (ANTHROPIC_API_KEY)
-      6. Rule-based fallback
+    Call the best available LLM. First key found in env wins.
+    Priority order (quality + cost optimised):
+      1.  DeepSeek-V3          DEEPSEEK_API_KEY    platform.deepseek.com        ~$0.27/1M
+      2.  Groq / Llama-3.3-70B GROQ_API_KEY        console.groq.com             Free tier
+      3.  Gemini 2.0 Flash     GEMINI_API_KEY       aistudio.google.com          Free tier
+      4.  Cerebras / Llama-3.3 CEREBRAS_API_KEY     cloud.cerebras.ai            Free tier
+      5.  SambaNova / Llama-3.3 SAMBANOVA_API_KEY   cloud.sambanova.ai           Free tier
+      6.  Fireworks / Llama-3.3 FIREWORKS_API_KEY   fireworks.ai                 Free trial
+      7.  Together / Llama-3.3 TOGETHER_API_KEY     api.together.xyz             Free $1 credit
+      8.  Mistral Small        MISTRAL_API_KEY      console.mistral.ai           Free trial
+      9.  Perplexity Sonar     PERPLEXITY_API_KEY   perplexity.ai/settings/api   $5 credit
+      10. Nvidia NIM / Llama   NVIDIA_API_KEY       build.nvidia.com             Free credits
+      11. xAI Grok-3-mini      XAI_API_KEY          console.x.ai                 Free trial
+      12. OpenRouter (any)     OPENROUTER_API_KEY   openrouter.ai                Pay-per-use
+      13. Cohere Command-R+    COHERE_API_KEY       dashboard.cohere.com         Free trial
+      14. OpenAI GPT-4o-mini   OPENAI_API_KEY       platform.openai.com          ~$0.15/1M
+      15. Anthropic Claude Haiku ANTHROPIC_API_KEY  console.anthropic.com        ~$0.25/1M
+      16. Rule-based fallback (no key needed)
     """
     prompt = _build_llm_prompt(signals)
 
     providers = []
     if DEEPSEEK_KEY:
-        providers.append(("DeepSeek-V3",      lambda: _call_openai_compat(DEEPSEEK_KEY, "https://api.deepseek.com/v1", "deepseek-chat", prompt)))
+        providers.append(("DeepSeek-V3",           lambda: _call_openai_compat(DEEPSEEK_KEY,   "https://api.deepseek.com/v1",                      "deepseek-chat",                                      prompt)))
     if GROQ_KEY:
-        providers.append(("Groq/Llama-3.3",   lambda: _call_openai_compat(GROQ_KEY,     "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", prompt)))
+        providers.append(("Groq/Llama-3.3-70B",    lambda: _call_openai_compat(GROQ_KEY,       "https://api.groq.com/openai/v1",                   "llama-3.3-70b-versatile",                            prompt)))
     if GEMINI_KEY:
-        providers.append(("Gemini-2.0-Flash", lambda: _call_gemini(GEMINI_KEY, prompt)))
+        providers.append(("Gemini-2.0-Flash",      lambda: _call_gemini(GEMINI_KEY, prompt)))
+    if CEREBRAS_KEY:
+        providers.append(("Cerebras/Llama-3.3-70B",lambda: _call_openai_compat(CEREBRAS_KEY,   "https://api.cerebras.ai/v1",                       "llama-3.3-70b",                                      prompt)))
+    if SAMBANOVA_KEY:
+        providers.append(("SambaNova/Llama-3.3-70B",lambda: _call_openai_compat(SAMBANOVA_KEY, "https://api.sambanova.ai/v1",                      "Meta-Llama-3.3-70B-Instruct",                        prompt)))
+    if FIREWORKS_KEY:
+        providers.append(("Fireworks/Llama-3.3-70B",lambda: _call_openai_compat(FIREWORKS_KEY, "https://api.fireworks.ai/inference/v1",             "accounts/fireworks/models/llama-v3p3-70b-instruct",  prompt)))
+    if TOGETHER_KEY:
+        providers.append(("Together/Llama-3.3-70B", lambda: _call_openai_compat(TOGETHER_KEY,  "https://api.together.xyz/v1",                      "meta-llama/Llama-3.3-70B-Instruct-Turbo",            prompt)))
+    if MISTRAL_KEY:
+        providers.append(("Mistral-Small",          lambda: _call_openai_compat(MISTRAL_KEY,    "https://api.mistral.ai/v1",                        "mistral-small-latest",                               prompt)))
+    if PERPLEXITY_KEY:
+        providers.append(("Perplexity-Sonar-Pro",   lambda: _call_openai_compat(PERPLEXITY_KEY, "https://api.perplexity.ai",                       "sonar-pro",                                          prompt)))
+    if NVIDIA_KEY:
+        providers.append(("Nvidia/Llama-3.3-70B",   lambda: _call_openai_compat(NVIDIA_KEY,    "https://integrate.api.nvidia.com/v1",              "meta/llama-3.3-70b-instruct",                        prompt)))
+    if XAI_KEY:
+        providers.append(("xAI/Grok-3-mini",        lambda: _call_openai_compat(XAI_KEY,       "https://api.x.ai/v1",                              "grok-3-mini",                                        prompt)))
+    if OPENROUTER_KEY:
+        providers.append(("OpenRouter/Llama-3.3",   lambda: _call_openai_compat(OPENROUTER_KEY, "https://openrouter.ai/api/v1",                    "meta-llama/llama-3.3-70b-instruct",                  prompt)))
+    if COHERE_KEY:
+        providers.append(("Cohere/Command-R+",      lambda: _call_cohere(COHERE_KEY, prompt)))
     if OPENAI_KEY:
-        providers.append(("GPT-4o-mini",      lambda: _call_openai_compat(OPENAI_KEY,   "https://api.openai.com/v1", "gpt-4o-mini", prompt)))
+        providers.append(("GPT-4o-mini",            lambda: _call_openai_compat(OPENAI_KEY,    "https://api.openai.com/v1",                        "gpt-4o-mini",                                        prompt)))
     if ANTHROPIC_KEY:
-        providers.append(("Claude-Haiku",     lambda: _call_anthropic(ANTHROPIC_KEY, CLAUDE_MODEL, prompt)))
+        providers.append(("Claude-Haiku",           lambda: _call_anthropic(ANTHROPIC_KEY, CLAUDE_MODEL, prompt)))
 
     for name, caller in providers:
         try:
