@@ -1433,3 +1433,11 @@ def register_routes(handler_dispatch: dict):
     handler_dispatch["/api/persona-builder/analyze-linkedin"]  = handle_analyze_linkedin
     logger.info("[PersonaBuilder] Endpoints registered: analyze-jd, analyze-url, analyze-linkedin")
     logger.info("[PersonaBuilder] Active data sources: Bright Data | PDL | SparkToro | Lightcast | Jina | Claude Haiku")
+
+
+# ── Public aliases for Vercel API handler imports ─────────────────────────────
+# The Vercel handlers (analyze-jd.py, analyze-url.py, analyze-linkedin.py)
+# import these names directly. Keep as public (no underscore) so they're
+# importable without the leading underscore.
+build_persona_response = _build_persona_response
+cluster_jobs           = _cluster_jobs
