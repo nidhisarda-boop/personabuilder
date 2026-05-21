@@ -60,6 +60,10 @@ SPARKTORO_API_KEY  = os.environ.get("SPARKTORO_API_KEY", "")
 LIGHTCAST_CLIENT   = os.environ.get("LIGHTCAST_CLIENT_ID", "")
 LIGHTCAST_SECRET   = os.environ.get("LIGHTCAST_CLIENT_SECRET", "")
 ANTHROPIC_KEY      = os.environ.get("ANTHROPIC_API_KEY", "")
+DEEPSEEK_KEY       = os.environ.get("DEEPSEEK_API_KEY", "")
+GROQ_KEY           = os.environ.get("GROQ_API_KEY", "")
+GEMINI_KEY         = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_KEY         = os.environ.get("OPENAI_API_KEY", "")
 APIFY_KEY          = os.environ.get("APIFY_API_KEY", "")
 
 CLAUDE_MODEL       = "claude-haiku-4-5"
@@ -732,13 +736,9 @@ Every field must be deployment-ready — specific enough to use as actual campai
 Never use placeholder text. Reference real technologies, real company names, real situations."""
 
 
-def _generate_persona_llm(signals: dict) -> dict:
-    """Call Claude Haiku with JTBD + DISC framework."""
-    if not ANTHROPIC_KEY:
-        return _rule_based_persona(signals)
-
-    # Compose signal summary for LLM
-    prompt_parts = [
+def _build_llm_prompt(signals: dict) -> str:
+    """Build the user prompt from signals dict."""
+    parts = [
         f"Industry: {signals['industry']}",
         f"Seniority: {signals['seniority']}",
         f"Location: {signals['location']}",
@@ -750,42 +750,110 @@ def _generate_persona_llm(signals: dict) -> dict:
         f"Veteran pathway: {signals.get('veteran', False)}",
     ]
     if signals.get("li_industries"):
-        prompt_parts.append(f"LinkedIn top industries: {', '.join(signals['li_industries'])}")
+        parts.append(f"LinkedIn top industries: {', '.join(signals['li_industries'])}")
     if signals.get("li_colleges"):
-        prompt_parts.append(f"LinkedIn top schools: {', '.join(signals['li_colleges'])}")
+        parts.append(f"LinkedIn top schools: {', '.join(signals['li_colleges'])}")
     if signals.get("pdl_prior_employers"):
-        prompt_parts.append(f"Typical prior employers (PDL data): {', '.join(signals['pdl_prior_employers'])}")
+        parts.append(f"Typical prior employers (PDL data): {', '.join(signals['pdl_prior_employers'])}")
     if signals.get("lightcast_skills"):
-        prompt_parts.append(f"Top skills in market demand (Lightcast): {', '.join(signals['lightcast_skills'])}")
+        parts.append(f"Top skills in market demand (Lightcast): {', '.join(signals['lightcast_skills'])}")
     if signals.get("sparktoro_sites"):
-        prompt_parts.append(f"Audience visits these sites (SparkToro): {', '.join(signals['sparktoro_sites'])}")
+        parts.append(f"Audience visits these sites (SparkToro): {', '.join(signals['sparktoro_sites'])}")
     if signals.get("sparktoro_subreddits"):
-        prompt_parts.append(f"Audience active on subreddits (SparkToro): {', '.join(signals['sparktoro_subreddits'])}")
+        parts.append(f"Audience active on subreddits (SparkToro): {', '.join(signals['sparktoro_subreddits'])}")
+    return "Job signals:\n" + "\n".join(parts) + "\n\nGenerate the candidate persona JSON."
 
-    prompt = "Job signals:\n" + "\n".join(prompt_parts) + "\n\nGenerate the candidate persona JSON."
 
-    try:
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": CLAUDE_MODEL,
-                "max_tokens": 1800,
-                "system": PERSONA_SYSTEM,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            timeout=LLM_TIMEOUT,
-        )
-        if resp.status_code == 200:
-            text = resp.json()["content"][0]["text"].strip()
-            text = re.sub(r"^```(?:json)?\n?", "", text)
-            text = re.sub(r"\n?```$", "", text)
-            persona = json.loads(text)
-            # Ensure messaging_variants is always populated
+def _parse_llm_json(text: str) -> dict:
+    """Strip markdown fences and parse JSON from LLM response."""
+    text = re.sub(r"^```(?:json)?\n?", "", text.strip())
+    text = re.sub(r"\n?```$", "", text)
+    return json.loads(text)
+
+
+def _call_openai_compat(api_key: str, base_url: str, model: str, prompt: str) -> dict:
+    """Generic caller for any OpenAI-compatible API (DeepSeek, Groq, OpenAI, etc.)."""
+    resp = requests.post(
+        f"{base_url}/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "max_tokens": 1800,
+            "messages": [
+                {"role": "system", "content": PERSONA_SYSTEM},
+                {"role": "user",   "content": prompt},
+            ],
+        },
+        timeout=LLM_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _parse_llm_json(resp.json()["choices"][0]["message"]["content"])
+
+
+def _call_anthropic(api_key: str, model: str, prompt: str) -> dict:
+    """Anthropic Messages API caller."""
+    resp = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": model,
+            "max_tokens": 1800,
+            "system": PERSONA_SYSTEM,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=LLM_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _parse_llm_json(resp.json()["content"][0]["text"])
+
+
+def _call_gemini(api_key: str, prompt: str) -> dict:
+    """Google Gemini API caller."""
+    resp = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+        headers={"Content-Type": "application/json"},
+        json={
+            "contents": [{"parts": [{"text": PERSONA_SYSTEM + "\n\n" + prompt}]}],
+            "generationConfig": {"maxOutputTokens": 1800, "temperature": 0.7},
+        },
+        timeout=LLM_TIMEOUT,
+    )
+    resp.raise_for_status()
+    return _parse_llm_json(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
+
+
+def _generate_persona_llm(signals: dict) -> dict:
+    """
+    Call the best available LLM to generate a persona.
+    Provider priority (first key found wins):
+      1. DeepSeek-V3  (DEEPSEEK_API_KEY)   — cheap, excellent reasoning
+      2. Groq/Llama-3.3-70B (GROQ_API_KEY) — free tier, very fast
+      3. Google Gemini 2.0 Flash (GEMINI_API_KEY) — free tier
+      4. OpenAI GPT-4o-mini  (OPENAI_API_KEY)
+      5. Anthropic Claude Haiku (ANTHROPIC_API_KEY)
+      6. Rule-based fallback
+    """
+    prompt = _build_llm_prompt(signals)
+
+    providers = []
+    if DEEPSEEK_KEY:
+        providers.append(("DeepSeek-V3",      lambda: _call_openai_compat(DEEPSEEK_KEY, "https://api.deepseek.com/v1", "deepseek-chat", prompt)))
+    if GROQ_KEY:
+        providers.append(("Groq/Llama-3.3",   lambda: _call_openai_compat(GROQ_KEY,     "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", prompt)))
+    if GEMINI_KEY:
+        providers.append(("Gemini-2.0-Flash", lambda: _call_gemini(GEMINI_KEY, prompt)))
+    if OPENAI_KEY:
+        providers.append(("GPT-4o-mini",      lambda: _call_openai_compat(OPENAI_KEY,   "https://api.openai.com/v1", "gpt-4o-mini", prompt)))
+    if ANTHROPIC_KEY:
+        providers.append(("Claude-Haiku",     lambda: _call_anthropic(ANTHROPIC_KEY, CLAUDE_MODEL, prompt)))
+
+    for name, caller in providers:
+        try:
+            persona = caller()
             if not persona.get("messaging_variants"):
                 persona["messaging_variants"] = _rule_based_messaging(
                     persona.get("disc_type", "S"),
@@ -794,10 +862,13 @@ def _generate_persona_llm(signals: dict) -> dict:
                 )
             if "job_quality_issues" not in persona:
                 persona["job_quality_issues"] = []
+            logger.info(f"Persona generated via {name}")
             return persona
-    except Exception as e:
-        logger.warning(f"LLM persona generation failed: {e}")
+        except Exception as e:
+            logger.warning(f"{name} failed: {e}")
+            continue
 
+    logger.warning("All LLM providers failed — falling back to rule-based persona")
     return _rule_based_persona(signals)
 
 
