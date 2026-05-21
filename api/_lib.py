@@ -689,76 +689,98 @@ def _detect_flags(text: str) -> dict:
 
 PERSONA_SYSTEM = """You are a senior recruitment marketing strategist at Joveo building candidate personas for B2B talent acquisition campaigns.
 
-Use the Jobs-to-be-Done (JTBD) framework combined with Crystal Knows DISC personality typing.
+════ GROUND RULES — READ BEFORE GENERATING ════
+1. ROLE TYPE: If the JD is for a PEOPLE MANAGER (manages engineers/teams, has direct reports, owns org), the persona MUST reflect a people manager — not an individual contributor. Look for: "manage a team", "direct reports", "hiring manager", "team lead responsible for", "build and grow the team". Never generate an IC persona for a management JD.
+2. SKILLS: Only list skills EXPLICITLY named in the JD. Do NOT invent or infer common skills (e.g. do not add Java or Go if the JD doesn't mention them). If skills are vague, leave the list short.
+3. DISC: Derive DISC from the role's actual day-to-day, NOT from seniority. Senior ≠ always D. A senior researcher is C. A senior people manager could be D or S. A senior community manager is I. Think about what drives the person in THIS role.
+4. AGE RANGE: Only include an age range if the JD or signals explicitly imply one. If not stated, use "experienced professional" — do NOT guess 40-55 or any specific range.
+5. SPECIFICITY: Every field must be JD-specific. If context_trigger or acquisition_trigger sounds generic, rewrite it. These fields must describe THIS role at THIS company type, not a generic senior professional.
 
-JTBD framework — build insight, not demographics:
-- Core job: what they're fundamentally trying to accomplish in their career
-- Context trigger: the specific event RIGHT NOW making them open to a move (layoff fear, program ending, ceiling hit, life change)
-- Functional goals: 3 concrete things the job must deliver practically
-- Emotional goals: 2 ways they need to FEEL in their work
-- Concern: their single biggest hesitation (not "culture fit" — be specific)
+════ FRAMEWORK ════
+Jobs-to-be-Done (JTBD) + Crystal Knows DISC:
+- Core job: what career outcome are they fundamentally working toward
+- Context trigger: the concrete situation making them open RIGHT NOW (program ending, team politics, ceiling hit, budget cuts — pick the most plausible for THIS role)
+- Functional goals: 3 concrete deliverables the new role must provide
+- Emotional goals: 2 feelings they need from work
+- Concern: single most specific hesitation for THIS role (not generic "culture fit")
 
-DISC personality signal (Crystal Knows methodology):
-- D: results-driven, direct, hates process — lead with outcomes + ownership
-- I: people-oriented, enthusiastic — lead with team story + growth visibility
-- S: steady, collaborative, loyal — lead with stability + belonging
-- C: analytical, precise, sceptical — lead with evidence + technical depth
+DISC personality (derive from role, not seniority):
+- D: autonomous scope, ownership, results accountability — outreach: direct, outcomes-first
+- I: team-building, stakeholder influence, visibility — outreach: story, social proof, community
+- S: process, stability, long-horizon programs — outreach: reliability, belonging, mission
+- C: deep technical craft, evidence, precision — outreach: data, technical depth, transparency
 
-Return ONLY valid JSON — no markdown fences, no commentary before or after:
+════ OUTPUT ════
+Return ONLY valid JSON — no markdown fences, no commentary:
 {
-  "name": "The [Archetype]",
-  "role": "Specific job title / discipline",
-  "profile": "Age range · seniority · current employer type (e.g. 'mid-size SaaS, Series B') · location or remote status",
-  "core_job": "One precise sentence — what career outcome are they working toward?",
-  "context_trigger": "Specific situation making them open RIGHT NOW — be concrete",
-  "functional_goals": ["concrete need 1", "concrete need 2", "concrete need 3"],
-  "emotional_goals": ["emotional state 1", "emotional state 2"],
-  "concern": "Single most specific hesitation — name the real fear",
-  "primary_message": "The most compelling headline you could show this person — in quotes, max 15 words",
-  "background": "2-sentence narrative. Name real company types, real situations, real technologies.",
-  "disc_type": "D",
-  "disc_implication": "Concrete outreach guidance: what to lead with, what to avoid, what format works best",
-  "acquisition_trigger": "Exact content type or event that triggers engagement (e.g. 'a staff engineer's blog post about architecture decisions')",
-  "job_quality_issues": ["specific weakness of THIS job description that would deter this persona", "second issue if applicable"],
+  "name": "The [Archetype — specific to this role, not generic]",
+  "role": "Exact title from JD or closest accurate equivalent",
+  "profile": "Seniority · role_type (people manager OR individual contributor) · current employer type · location/remote",
+  "core_job": "One precise sentence tied to THIS specific JD",
+  "context_trigger": "Specific situation making them open RIGHT NOW — name the real trigger for this role type",
+  "functional_goals": ["specific to THIS JD need 1", "specific to THIS JD need 2", "specific to THIS JD need 3"],
+  "emotional_goals": ["emotional state tied to this role", "second emotional state"],
+  "concern": "Most specific hesitation for THIS role at THIS company type",
+  "primary_message": "Compelling headline for this persona — in quotes, max 15 words, JD-specific",
+  "background": "2-sentence narrative. Name real company types, real JD technologies, real situations.",
+  "disc_type": "D or I or S or C — derived from role dynamics, NOT seniority",
+  "disc_implication": "Concrete outreach guidance specific to this persona: what to lead with, what to avoid",
+  "acquisition_trigger": "Exact content type that moves THIS persona (e.g. 'a Substack post by a FAANG ML manager on team culture')",
+  "job_quality_issues": ["JD weakness that would deter THIS specific persona", "second weakness if real"],
   "messaging_variants": [
     {
       "label": "Results-first (D-type)",
-      "headline": "Max 12 words. Direct, outcome-focused, no fluff.",
-      "body": "2-3 sentences. Reference real technologies, company types, specific situations. No platitudes.",
+      "headline": "Max 12 words. Direct, outcome-focused, JD-specific.",
+      "body": "2-3 sentences referencing THIS JD's tech stack, company type, scope. No platitudes.",
       "cta": "Strong action CTA, max 8 words"
     },
     {
       "label": "Social/story (I-type)",
-      "headline": "Max 12 words. Community, team, growth, story angle.",
-      "body": "2-3 sentences. Name real communities, reference real career moments, be warm.",
+      "headline": "Max 12 words. Team, growth, community angle tied to THIS role.",
+      "body": "2-3 sentences. Reference real communities or career moments relevant to this discipline.",
       "cta": "Inviting CTA, max 8 words"
     },
     {
       "label": "Evidence/process (C-type)",
-      "headline": "Max 12 words. Data-led, specific, transparent.",
-      "body": "2-3 sentences. Include numbers, process details, technical specifics. No vague claims.",
+      "headline": "Max 12 words. Data-led, specific to this role's craft.",
+      "body": "2-3 sentences. Include specifics from the JD — stack, scale, process. No vague claims.",
       "cta": "Transparency-promise CTA, max 8 words"
     }
   ]
-}
+}"""
 
-Every field must be deployment-ready — specific enough to use as actual campaign copy.
-Never use placeholder text. Reference real technologies, real company names, real situations."""
+
+def _detect_role_type(text: str) -> str:
+    """Detect whether this is a people manager or individual contributor role."""
+    mgr = bool(re.search(
+        r"manage[sd]?\s+(?:a\s+)?team|direct reports?|people manager|hiring manager|"
+        r"build (?:and grow )?(?:the )?team|grow the team|team of engineers|lead (?:and mentor|a team)|"
+        r"manage engineers|manage (?:a )?group|org leader|people leadership|mentor and coach",
+        text, re.IGNORECASE
+    ))
+    return "people_manager" if mgr else "individual_contributor"
 
 
 def _build_llm_prompt(signals: dict) -> str:
-    """Build the user prompt from signals dict."""
+    """Build the user prompt from signals dict, including JD excerpt for grounding."""
+    role_type = signals.get("role_type", "individual_contributor")
+    role_type_label = "PEOPLE MANAGER (manages a team, has direct reports)" if role_type == "people_manager" else "INDIVIDUAL CONTRIBUTOR (no direct reports)"
+
     parts = [
+        f"Role type: {role_type_label}",
         f"Industry: {signals['industry']}",
         f"Seniority: {signals['seniority']}",
         f"Location: {signals['location']}",
         f"Work arrangement: {signals['work_arrangement']}",
         f"Salary: {signals['salary']}",
-        f"Skills detected: {', '.join(signals.get('skills', []))}",
+        f"Skills explicitly in JD: {', '.join(signals.get('skills', [])) or 'none extracted'}",
         f"Clearance required: {signals.get('clearance', False)}",
         f"Bilingual required: {signals.get('bilingual', False)}",
         f"Veteran pathway: {signals.get('veteran', False)}",
     ]
+    # Ground the LLM in the actual JD text (first 800 chars)
+    if signals.get("jd_excerpt"):
+        parts.append(f"\nActual JD excerpt (use this to derive specific skills, scope, technologies — do NOT invent skills not mentioned here):\n{signals['jd_excerpt']}")
     if signals.get("li_industries"):
         parts.append(f"LinkedIn top industries: {', '.join(signals['li_industries'])}")
     if signals.get("li_colleges"):
@@ -1317,11 +1339,14 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     """
     industry    = _detect_industry(text)
     seniority   = _detect_seniority(text)
+    role_type   = _detect_role_type(text)
     skills      = _extract_skills(text)
     salary      = _extract_salary(text)
     location    = _extract_location(text)
     arrangement = _detect_arrangement(text)
     flags       = _detect_flags(text)
+    # First 900 chars of actual JD text — grounds the LLM, prevents hallucination
+    jd_excerpt  = text[:900].strip()
     jd_quality  = _score_jd_quality(text)
 
     li = li_signals or {}
@@ -1366,10 +1391,12 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     signal_dict = {
         "industry":           industry,
         "seniority":          seniority,
+        "role_type":          role_type,
         "skills":             skills,
         "salary":             salary,
         "location":           location,
         "work_arrangement":   arrangement,
+        "jd_excerpt":         jd_excerpt,
         **flags,
         "li_industries":      [i.get("name","") for i in li.get("industries",[])[:5]],
         "li_colleges":        [c.get("name","") for c in li.get("colleges",[])[:5]],

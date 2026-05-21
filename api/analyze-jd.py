@@ -18,8 +18,13 @@ class handler(BaseHTTPRequestHandler):
                 self._json({"error": "Provide 'text' or 'url'"}, 400); return
             if url and not text:
                 text = _fetch_url(url)
-                if not text:
-                    self._json({"error": f"Could not fetch {url}"}, 502); return
+                # Require at least 80 words — less means we got a redirect/login wall, not a real JD
+                if not text or len(text.split()) < 80:
+                    self._json({
+                        "error": "Could not extract job description from that URL. "
+                                 "The page may require login, use JavaScript rendering, or have bot protection. "
+                                 "Please paste the job description text directly into the text box."
+                    }, 502); return
             result = build_persona_response(text, "job_description")
             self._json(result)
         except Exception as e:
