@@ -10,6 +10,7 @@
     { "src": "/api/analyze-jd",       "dest": "/api/analyze-jd.py" },
     { "src": "/api/analyze-url",      "dest": "/api/analyze-url.py" },
     { "src": "/api/analyze-linkedin", "dest": "/api/analyze-linkedin.py" },
+    { "handle": "filesystem" },
     { "src": "/(.*)",                 "dest": "/index.html" }
   ]
 }
