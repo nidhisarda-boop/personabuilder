@@ -806,8 +806,7 @@ export default function PersonaBuilder() {
   });
 
   const applyDemo = () => {
-    setSrc("jd");
-    setJdText("Senior Embedded Software Engineer — Missile Defense Systems\nRTX · Tucson, AZ\nRequired: Active SECRET clearance\n5+ years C/C++, VxWorks, DO-178C experience...");
+    // Show demo results WITHOUT overwriting the user's input fields
     const colored = { ...DEMO_DATA, personas: DEMO_DATA.personas.map((p, i) => ({ ...p, color: PERSONA_COLORS[i % PERSONA_COLORS.length] })) };
     setResult(colored); setSelPersona(0); setSelTab("personas");
   };
