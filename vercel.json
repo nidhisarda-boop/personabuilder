@@ -1,7 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/*.py", "use": "@vercel/python" },
+    { "src": "api/analyze-jd.py",       "use": "@vercel/python" },
+    { "src": "api/analyze-url.py",      "use": "@vercel/python" },
+    { "src": "api/analyze-linkedin.py", "use": "@vercel/python" },
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
   ],
   "routes": [
