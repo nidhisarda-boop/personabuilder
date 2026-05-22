@@ -640,7 +640,9 @@ SENIORITY_RE = {
     "executive": r"\bvp\b|vice\s+president|\bcto\b|\bcpo\b|\bcoo\b|\bceo\b|chief\s+\w+\s+officer|\bsvp\b|\bevp\b",
     "director":  r"\bdirector\s+of\b|\bhead\s+of\b",
     # check senior/staff BEFORE manager so "Senior Manager" → "senior"
-    "senior":    r"\bsenior\b|\bstaff\b|\bprincipal\b|\blead\s+engineer\b|\bsr\.",
+    # \bstaff\b alone matches "500+ staff across facilities" (company size, not seniority).
+    # Require "staff" to precede a role noun so only "Staff Engineer / Staff SRE / Staff Scientist" etc. are caught.
+    "senior":    r"\bsenior\b|\bstaff\s+(?:engineer|sre|developer|architect|scientist|researcher|product\s+manager|designer|data)\b|\bprincipal\b|\blead\s+engineer\b|\bsr\.",
     "manager":   r"\bmanager\b|\bsupervisor\b|\bteam\s+lead\b|\btech\s+lead\b|\bengineering\s+lead\b",
     # "entry-level" removed — appears in EEO boilerplate for almost every JD, not a reliable seniority signal
     "junior":    r"\bjunior\b|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:engineer|developer|analyst|position|role)|\bassociate\s+engineer\b|\binternship\b",
@@ -796,10 +798,15 @@ def _extract_location(text: str) -> str:
     # Pattern: require preposition or separator before city to avoid matching job titles.
     # Supports: "in McLean, VA"  "at Orono, Maine"  "– McLean, VA"  "based in Orono, Maine"
     # Full state names BEFORE [A-Z]{2} to prevent 'Ma' matching inside 'Machine'
-    state_pat = rf"(?:{_US_STATES}|[A-Z]{{2}})\b"
-    # First pass: require context (preposition / em-dash / hyphen)
+    # State pattern: full names first (before [A-Z]{2} to avoid partial match on "Ma" from "Machine").
+    # The 2-letter abbreviation uses (?-i:) to stay case-SENSITIVE even inside a re.IGNORECASE match
+    # — this prevents "Go", "in", "py" etc. from matching as state codes.
+    state_pat = rf"(?:{_US_STATES}|(?-i:[A-Z]{{2}}))\b"
+    # First pass: require context (preposition / em-dash).
+    # Exclude bare bullet-point hyphens by requiring the separator to be surrounded by non-alpha context
+    # (em-dash or "in/at/based in") rather than the list-item hyphen "- Python, Go, Java".
     m = re.search(
-        rf"(?:in|at|[–\-]|based\s+in|located\s+in)\s+([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)*,\s*{state_pat})",
+        rf"(?:(?:in|at|based\s+in|located\s+in)\s+|[–—]\s*)([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)*,\s*{state_pat})",
         text,
         re.IGNORECASE,
     )
@@ -1188,7 +1195,11 @@ def _generate_persona_llm(signals: dict) -> dict:
 
 
 def _rule_based_persona(signals: dict) -> dict:
-    """Fallback when LLM is unavailable."""
+    """
+    Fallback when LLM is unavailable.
+    For persona_variant==2 (second archetype in multi-persona mode), returns a
+    contrasting template so the two rule-based personas are meaningfully different.
+    """
     ind = signals.get("industry", "general")
     templates = {
         "tech":     ("The Creator",   "Software / AI Engineer",
@@ -1245,6 +1256,37 @@ def _rule_based_persona(signals: dict) -> dict:
     key = "bilingual" if signals.get("bilingual") else "defense" if signals.get("clearance") else ind
     t = templates.get(key, templates["general"])
     disc = t[6]
+
+    # Variant 2: pick a contrasting template so we don't duplicate the first persona
+    if signals.get("persona_variant") == 2:
+        # Rotate to a different industry template for contrast
+        contrast_map = {
+            "tech": "marketing", "healthcare": "hr", "defense": "finance",
+            "logistics": "retail", "marketing": "tech", "sales": "marketing",
+            "hr": "tech", "finance": "tech", "retail": "logistics",
+            "hospitality": "hr", "general": "sales",
+        }
+        alt_key = contrast_map.get(key, "general")
+        t2 = templates.get(alt_key, templates["general"])
+        # Keep the DISC type different
+        disc2 = t2[6] if t2[6] != disc else ({"D":"S","I":"C","S":"D","C":"I"}.get(disc,"S"))
+        persona = {
+            "name":  f"The {t2[0].split()[-1]} (Alt)",
+            "role":  t2[1],
+            "profile": f"{signals.get('seniority','mid').title()} · Alternative archetype · {signals.get('location','Unspecified')}",
+            "core_job": t2[2],
+            "context_trigger": "Reevaluating career trajectory — seeking a role better aligned with long-term goals.",
+            "functional_goals": ["Role clarity and ownership from day one", "A team culture built on trust and low-ego collaboration", "Clear compensation structure with transparent growth milestones"],
+            "emotional_goals": ["Feel their expertise creates tangible value", "Feel supported rather than managed"],
+            "concern": t2[3], "acquisition_trigger": t2[4], "primary_message": t2[5],
+            "background": "Complementary archetype to the primary persona — different career background, different motivation, same open role.",
+            "disc_type": disc2,
+            "disc_implication": "Contrasting outreach angle from the primary persona. Test both variants to find the higher-converting message for this role.",
+            "job_quality_issues": [],
+            "messaging_variants": _rule_based_messaging(disc2, alt_key, t2[1]),
+        }
+        return persona
+
     persona = {
         "name": t[0], "role": t[1],
         "profile": f"{signals.get('seniority','mid').title()} · {signals.get('work_arrangement','On-site')} · {signals.get('location','Unspecified')} · {signals.get('salary','Comp TBD')}",
