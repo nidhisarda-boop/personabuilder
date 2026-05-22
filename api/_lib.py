@@ -645,7 +645,11 @@ SENIORITY_RE = {
     "senior":    r"\bsenior\b|\bstaff\s+(?:engineer|sre|developer|architect|scientist|researcher|product\s+manager|designer|data)\b|\bprincipal\b|\blead\s+engineer\b|\bsr\.",
     "manager":   r"\bmanager\b|\bsupervisor\b|\bteam\s+lead\b|\btech\s+lead\b|\bengineering\s+lead\b",
     # "entry-level" removed — appears in EEO boilerplate for almost every JD, not a reliable seniority signal
-    "junior":    r"\bjunior\b|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:engineer|developer|analyst|position|role)|\bassociate\s+engineer\b|\binternship\b",
+    # \bintern\b catches "Software Engineering Intern" (word boundary prevents matching "internal")
+    # new\s+grad extended to also catch "new grad campus|program|hire" (not just "new grad engineer")
+    "junior":    r"\bjunior\b|\bintern\b|\binternship\b"
+                 r"|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:engineer|developer|analyst|position|role|program|hire|campus|recruit)"
+                 r"|\bassociate\s+engineer\b",
 }
 
 # SKILL_VOCAB: use word-boundary patterns for short/ambiguous names
