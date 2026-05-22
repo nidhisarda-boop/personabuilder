@@ -952,6 +952,174 @@ Return ONLY valid JSON — no markdown fences, no commentary:
 }"""
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MECE ARCHETYPE PAIRS
+# Mutually Exclusive, Collectively Exhaustive persona pairs per (seniority, role_type).
+# Each pair covers the two dominant candidate archetypes for that profile—defined on
+# orthogonal axes: DISC type, core motivation, background style, and context trigger.
+# This replaces the reactive "different DISC from persona 1" approach.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_MECE_PAIRS: dict = {
+    # ─── Senior Individual Contributor ───────────────────────────────────────
+    ("senior", "individual_contributor"): [
+        {
+            "archetype_name": "The Deep Specialist",
+            "disc": "C",
+            "motivation": "Technical mastery — solving problems few can; depth over breadth.",
+            "background_style": "Research-adjacent or long-tenure specialist; shaped by projects with real engineering constraints and high craft standards.",
+            "trigger": "Current role narrowing scope or pushing toward management they don't want.",
+            "messaging_angle": "Lead with technical depth, precision of the stack, and scale of unsolved problems. Cite specific technologies and constraints from the JD. Avoid generalist or leadership language.",
+        },
+        {
+            "archetype_name": "The Impact Builder",
+            "disc": "D",
+            "motivation": "Shipping at scale — owns outcomes, not just code. Cares what the work produces in the world.",
+            "background_style": "Startup or high-growth background; bias for action; has shipped to millions of users; knows when to cut scope.",
+            "trigger": "Current team moves too slowly or their work doesn't reach users at meaningful scale.",
+            "messaging_angle": "Lead with ownership, scope, and measurable outcomes. Name the scale this JD enables. Avoid org-chart complexity language.",
+        },
+    ],
+    # ─── People Manager (senior level) ───────────────────────────────────────
+    ("senior", "people_manager"): [
+        {
+            "archetype_name": "The Technical Leader",
+            "disc": "C",
+            "motivation": "Elevating engineering craft — wants a team that ships high-quality work and has strong engineering standards.",
+            "background_style": "IC-first career path; became a manager to protect craft standards at scale; still deeply technical.",
+            "trigger": "Current org has weak engineering culture or technical debt preventing the team from doing their best work.",
+            "messaging_angle": "Lead with engineering bar, codebase quality, tech stack maturity, and how the team makes technical decisions. Show technical excellence is valued.",
+        },
+        {
+            "archetype_name": "The People Developer",
+            "disc": "S",
+            "motivation": "Building team capability — finds meaning in coaching, removing blockers, and watching their reports grow.",
+            "background_style": "People-first orientation from early career; naturally gravitated toward team health, retention, and psychological safety.",
+            "trigger": "Current employer doesn't invest in people development, or the manager is stretched too thin to coach effectively.",
+            "messaging_angle": "Lead with team culture, mentorship investment, and how the company grows managers. Show the support structure and headcount for their team.",
+        },
+    ],
+    # ─── Director / Head of ───────────────────────────────────────────────────
+    ("director", "people_manager"): [
+        {
+            "archetype_name": "The Strategy Operator",
+            "disc": "C",
+            "motivation": "Systems thinking — creates alignment across teams and builds org capabilities that compound over time.",
+            "background_style": "Background in program or product leadership; brought order to complex, cross-functional environments and cross-team dependencies.",
+            "trigger": "Current org is siloed; strategy doesn't cascade into team-level execution reliably.",
+            "messaging_angle": "Lead with organizational clarity, how strategy connects to execution, and the operating model the team runs. Cite scope, headcount, and cross-functional reach.",
+        },
+        {
+            "archetype_name": "The Talent Multiplier",
+            "disc": "I",
+            "motivation": "Org capability — believes the quality of the team is the strategy; recruits and develops high performers.",
+            "background_style": "Career defined by building strong teams and cultivating internal talent pipelines; known for developing the next layer of leadership.",
+            "trigger": "Inherited or is inheriting a team that needs rebuilding — sees this as the core challenge worth solving.",
+            "messaging_angle": "Lead with team quality, hiring bar, and investment in people. Show caliber of existing leadership and career growth trajectory within the org.",
+        },
+    ],
+    # ─── Executive (VP, C-suite) ─────────────────────────────────────────────
+    ("executive", "people_manager"): [
+        {
+            "archetype_name": "The Operator",
+            "disc": "D",
+            "motivation": "Business results — P&L ownership, speed of execution, removing obstacles to growth.",
+            "background_style": "Led large orgs through growth phases or turnarounds; holds self and team to hard metrics and clear accountability.",
+            "trigger": "Wants full ownership of a domain — not to be the second layer of a large org with bureaucratic drag.",
+            "messaging_angle": "Lead with scope of decision authority, clear accountability structure, and what the business outcome is. Show the resources and team behind the role.",
+        },
+        {
+            "archetype_name": "The Visionary Builder",
+            "disc": "I",
+            "motivation": "Transformation — building something that outlasts them; culture and brand as competitive moat.",
+            "background_style": "Career defined by org-building and mission alignment; known for attracting and retaining exceptional people around a compelling narrative.",
+            "trigger": "Current role lacks blank-sheet-of-paper opportunity or company mission is no longer personally compelling.",
+            "messaging_angle": "Lead with company mission, cultural opportunity, and what can be built. Name the transformation horizon and caliber of people they'd build it with.",
+        },
+    ],
+    # ─── Mid-level Individual Contributor (default for most JDs) ─────────────
+    ("mid", "individual_contributor"): [
+        {
+            "archetype_name": "The Craftsperson",
+            "disc": "C",
+            "motivation": "Quality and precision — builds things right, not just fast; has strong opinions on standards and how work is done.",
+            "background_style": "Methodical career progression; has accumulated depth in a domain and is picky about their next environment.",
+            "trigger": "Current team ships fast but accumulates technical or process debt that erodes the quality of their work.",
+            "messaging_angle": "Lead with tech stack, code quality expectations, and what 'done well' looks like on your team. Show the day-to-day craft environment.",
+        },
+        {
+            "archetype_name": "The Opportunity Seeker",
+            "disc": "I",
+            "motivation": "Growth and impact — wants a role that accelerates their trajectory and connects their work to visible outcomes.",
+            "background_style": "Adaptable and eager; has built lateral skills across domains; optimises for learning velocity and team caliber.",
+            "trigger": "Current role has plateaued — no new problems, no growth, or team has stopped learning together.",
+            "messaging_angle": "Lead with learning opportunities, team caliber, and how this role accelerates their career. Name recent initiatives the team shipped or challenges ahead.",
+        },
+    ],
+    # ─── Mid-level People Manager ─────────────────────────────────────────────
+    ("mid", "people_manager"): [
+        {
+            "archetype_name": "The Technical Leader",
+            "disc": "C",
+            "motivation": "Engineering craft — manages to protect and elevate quality standards across the team.",
+            "background_style": "Grew into management organically from a strong IC foundation; still codes or reviews closely.",
+            "trigger": "Current org's engineering bar is slipping — wants to join a team that takes quality seriously.",
+            "messaging_angle": "Lead with engineering bar, review culture, and technical decision-making process. Show that managers here stay close to the work.",
+        },
+        {
+            "archetype_name": "The People Developer",
+            "disc": "S",
+            "motivation": "Team capability and belonging — grows people intentionally and creates stable, high-trust team environments.",
+            "background_style": "People-first orientation; natural coach; built early credibility through team health and low attrition.",
+            "trigger": "Wants an org that invests in manager development and gives them real tools to grow their reports.",
+            "messaging_angle": "Lead with mentorship programs, 1:1 investment, and manager support structures. Show what team culture looks like at this company.",
+        },
+    ],
+    # ─── Junior / Entry-level IC ──────────────────────────────────────────────
+    ("junior", "individual_contributor"): [
+        {
+            "archetype_name": "The Eager Builder",
+            "disc": "D",
+            "motivation": "Hands-on reps — wants to ship, make mistakes, and own real things early in their career.",
+            "background_style": "CS or bootcamp background; has built side projects; proof-of-ability mindset; reads about the field obsessively.",
+            "trigger": "Graduating or current internship ending; wants a full-time home where they can move fast and have real ownership.",
+            "messaging_angle": "Lead with early ownership, what they'll ship in the first 90 days, and the caliber of teammates they'll learn from. Show the ramp-up plan.",
+        },
+        {
+            "archetype_name": "The Thoughtful Learner",
+            "disc": "S",
+            "motivation": "Mentorship and safety — wants structure, good code review culture, and to learn from seniors without burning out.",
+            "background_style": "Career changer or deliberate academic background; has mapped out what they want to build over 5 years; risk-averse about their first hire.",
+            "trigger": "Evaluating first or second role carefully — won't accept chaos or sink-or-swim environments.",
+            "messaging_angle": "Lead with mentorship programs, code review culture, senior investment in juniors, and psychological safety. Show what onboarding looks like.",
+        },
+    ],
+}
+
+
+def _get_mece_pair(seniority: str, role_type: str) -> list:
+    """
+    Return the two MECE archetypes for this (seniority, role_type) combination.
+    Falls back gracefully across tiers.
+    """
+    key = (seniority, role_type)
+    if key in _MECE_PAIRS:
+        return _MECE_PAIRS[key]
+    # People manager fallbacks
+    if role_type == "people_manager":
+        if seniority in ("senior", "manager"):
+            return _MECE_PAIRS[("senior", "people_manager")]
+        if seniority == "director":
+            return _MECE_PAIRS[("director", "people_manager")]
+        return _MECE_PAIRS[("executive", "people_manager")]
+    # IC fallbacks by seniority tier
+    if seniority in ("senior", "staff", "principal"):
+        return _MECE_PAIRS[("senior", "individual_contributor")]
+    if seniority == "junior":
+        return _MECE_PAIRS[("junior", "individual_contributor")]
+    return _MECE_PAIRS[("mid", "individual_contributor")]
+
+
 def _detect_role_type(text: str) -> str:
     """
     Detect whether this is a people manager or individual contributor role.
@@ -1003,8 +1171,23 @@ def _build_llm_prompt(signals: dict) -> str:
     role_type_label = "PEOPLE MANAGER (manages a team, has direct reports)" if role_type == "people_manager" else "INDIVIDUAL CONTRIBUTOR (no direct reports)"
 
     parts = []
-    # Variant instruction (for multi-persona generation)
-    if signals.get("persona_variant") == 2:
+    # MECE archetype instruction (takes priority over generic variant instruction)
+    if signals.get("mece_archetype"):
+        arch = signals["mece_archetype"]
+        parts.append(
+            f"MECE ARCHETYPE CONSTRAINT — generate exactly this candidate archetype:\n"
+            f"  Archetype name: {arch['archetype_name']}\n"
+            f"  DISC type: {arch['disc']}  ← mandatory, do not change\n"
+            f"  Core motivation: {arch['motivation']}\n"
+            f"  Background style: {arch['background_style']}\n"
+            f"  Context trigger: {arch['trigger']}\n"
+            f"  Messaging angle: {arch['messaging_angle']}\n"
+            f"The archetype name, DISC type, and motivation are fixed. "
+            f"All other fields (name, core_job, functional_goals, background, etc.) "
+            f"MUST be grounded in the actual JD provided — do not invent details not implied by the JD."
+        )
+    elif signals.get("persona_variant") == 2:
+        # Legacy fallback if mece_archetype not provided
         first = signals.get("first_persona_summary", "the first persona")
         parts.append(
             f"VARIATION REQUIREMENT: Generate an ALTERNATIVE candidate archetype for the same role.\n"
@@ -1227,9 +1410,46 @@ def _generate_persona_llm(signals: dict) -> dict:
 def _rule_based_persona(signals: dict) -> dict:
     """
     Fallback when LLM is unavailable.
-    For persona_variant==2 (second archetype in multi-persona mode), returns a
-    contrasting template so the two rule-based personas are meaningfully different.
+    When mece_archetype is provided, builds the persona directly from the MECE
+    archetype definition so both rule-based personas are principled and MECE.
     """
+    # ── MECE archetype path (preferred) ──────────────────────────────────────
+    if signals.get("mece_archetype"):
+        arch = signals["mece_archetype"]
+        disc = arch.get("disc", "S")
+        ind  = signals.get("industry", "general")
+        seniority = signals.get("seniority", "mid")
+        role_type = signals.get("role_type", "individual_contributor")
+        role_label = "People Manager" if role_type == "people_manager" else "Individual Contributor"
+        return {
+            "name":    arch["archetype_name"],
+            "role":    f"{seniority.title()} {role_label}",
+            "profile": (
+                f"{seniority.title()} · {role_label} · "
+                f"{signals.get('work_arrangement', 'On-site')} · "
+                f"{signals.get('location', 'Unspecified')}"
+            ),
+            "core_job":         arch["motivation"],
+            "context_trigger":  arch["trigger"],
+            "functional_goals": [
+                "Role clarity and real ownership from day one",
+                "A team environment matching their background style and motivation",
+                "Clear compensation structure with transparent growth milestones",
+            ],
+            "emotional_goals": [
+                "Feel their expertise creates tangible value",
+                "Feel supported and aligned with the team's operating style",
+            ],
+            "concern":             "Whether the day-to-day environment matches what the JD implies.",
+            "acquisition_trigger": "A transparent JD with specific tech/scope detail and honest role expectations.",
+            "primary_message":     f'"{arch["archetype_name"]} — built for this kind of challenge."',
+            "background":          arch["background_style"],
+            "disc_type":           disc,
+            "disc_implication":    arch["messaging_angle"],
+            "job_quality_issues":  [],
+            "messaging_variants":  _rule_based_messaging(disc, ind, arch["archetype_name"]),
+        }
+
     ind = signals.get("industry", "general")
     templates = {
         "tech":     ("The Creator",   "Software / AI Engineer",
@@ -1772,23 +1992,20 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "sparktoro_subreddits":sparktoro.get("subreddits", [])[:4],
     }
 
-    # ── Persona generation: 2 personas for complex/senior/manager roles ──────
-    is_complex = (role_type == "people_manager" or seniority in ("senior", "executive", "director"))
+    # ── Persona generation: always 2 MECE personas ───────────────────────────
+    # Get the two principled MECE archetypes for this role profile.
+    # Archetypes are defined upfront on orthogonal axes (DISC, motivation, background)
+    # so the two personas are Mutually Exclusive and Collectively Exhaustive.
+    mece_pair = _get_mece_pair(seniority, role_type)
+    arch1, arch2 = mece_pair[0], mece_pair[1]
 
-    # Primary persona
-    p1_signals = {**signal_dict, "persona_variant": 1}
+    p1_signals = {**signal_dict, "persona_variant": 1, "mece_archetype": arch1}
     p1 = _generate_persona_llm(p1_signals)
-    personas_list = [p1]
 
-    if is_complex:
-        # Secondary persona — contrasting archetype for the same role
-        p2_signals = {
-            **signal_dict,
-            "persona_variant": 2,
-            "first_persona_summary": f"{p1.get('name','?')} · DISC:{p1.get('disc_type','?')} · {p1.get('profile','')[:80]}",
-        }
-        p2 = _generate_persona_llm(p2_signals)
-        personas_list.append(p2)
+    p2_signals = {**signal_dict, "persona_variant": 2, "mece_archetype": arch2}
+    p2 = _generate_persona_llm(p2_signals)
+
+    personas_list = [p1, p2]
 
     # ── Channel recommendations (SparkToro-informed) ──────────────────────
     flags_list = [k for k, v in flags.items() if v]
