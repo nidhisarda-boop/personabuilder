@@ -637,18 +637,28 @@ _INDUSTRY_PRIORITY = ["defense","healthcare","finance","tech","marketing","sales
 
 SENIORITY_RE = {
     # Word boundaries on ALL tokens — cto/cpo/coo/ceo without \b match inside 'director', 'executive', etc.
-    "executive": r"\bvp\b|vice\s+president|\bcto\b|\bcpo\b|\bcoo\b|\bceo\b|chief\s+\w+\s+officer|\bsvp\b|\bevp\b",
-    "director":  r"\bdirector\s+of\b|\bhead\s+of\b",
+    # Full C-suite acronym coverage: CFO, CIO, CMO, CRO, CHRO, CDO, CSO also included
+    "executive": r"\bvp\b|vice\s+president|\bcto\b|\bcpo\b|\bcoo\b|\bceo\b|\bcfo\b|\bcio\b|\bcmo\b|\bcro\b|\bchro\b|\bcdo\b|\bcso\b|chief\s+\w+\s+officer|\bsvp\b|\bevp\b",
+    # \bdirector\b (not just \bdirector\s+of\b) so "Director, Product" and "Director of X" both match
+    "director":  r"\bdirector\b|\bhead\s+of\b",
     # check senior/staff BEFORE manager so "Senior Manager" → "senior"
     # \bstaff\b alone matches "500+ staff across facilities" (company size, not seniority).
     # Require "staff" to precede a role noun so only "Staff Engineer / Staff SRE / Staff Scientist" etc. are caught.
-    "senior":    r"\bsenior\b|\bstaff\s+(?:engineer|sre|developer|architect|scientist|researcher|product\s+manager|designer|data)\b|\bprincipal\b|\blead\s+engineer\b|\bsr\.",
+    # \blead\s+engineer\b → broadened to \blead\s+(?:\w+\s+){0,2}(?:engineer|...) to catch
+    # "Lead Software Engineer", "Lead Data Scientist", "Lead Machine Learning Engineer" etc.
+    # {0,2} allows 0–2 intervening words (e.g. "Machine Learning" = 2 words)
+    "senior":    r"\bsenior\b"
+                 r"|\bstaff\s+(?:\w+\s+)?(?:engineer|sre|developer|architect|scientist|researcher|product\s+manager|designer|data)\b"
+                 r"|\bprincipal\b"
+                 r"|\blead\s+(?:\w+\s+){0,2}(?:engineer|developer|architect|scientist|analyst|designer|researcher)\b"
+                 r"|\bsr\.",
     "manager":   r"\bmanager\b|\bsupervisor\b|\bteam\s+lead\b|\btech\s+lead\b|\bengineering\s+lead\b",
     # "entry-level" removed — appears in EEO boilerplate for almost every JD, not a reliable seniority signal
     # \bintern\b catches "Software Engineering Intern" (word boundary prevents matching "internal")
     # new\s+grad extended to also catch "new grad campus|program|hire" (not just "new grad engineer")
+    # (?:\w+\s+)? allows one optional adjective word so "Entry-Level Software Engineer" matches
     "junior":    r"\bjunior\b|\bintern\b|\binternship\b"
-                 r"|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:engineer|developer|analyst|position|role|program|hire|campus|recruit)"
+                 r"|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:\w+\s+)?(?:engineer|developer|analyst|position|role|program|hire|campus|recruit)"
                  r"|\bassociate\s+engineer\b",
 }
 
@@ -737,7 +747,8 @@ def _detect_seniority(text: str) -> str:
     """
     # Job title = first non-empty line only (prevents "Executive Director of Care at Genesis"
     # from making a frontline RN look executive-level)
-    first_line = next((ln.strip().lower() for ln in text.split("\n") if len(ln.strip()) > 3), "")
+    # Use >= 2 (not > 3) so 3-letter acronyms like "CTO", "CFO", "CIO" are captured
+    first_line = next((ln.strip().lower() for ln in text.split("\n") if len(ln.strip()) >= 2), "")
     title_area = (first_line + " " + text[:200].lower())   # first line + fallback window
     body_area  = text[:600].lower()                         # broader body for other levels
 
@@ -829,19 +840,22 @@ def _extract_location(text: str) -> str:
         city_part = loc.split(",")[0].strip()
         if len(city_part) >= 3:
             return loc
-    if re.search(r"fully remote|100% remote|work from home|wfh", text, re.IGNORECASE):
-        return "Remote"
-    if re.search(r"\bhybrid\b", text, re.IGNORECASE):
-        return "Hybrid"
+    # No city/state found — location is unknown. Do NOT return arrangement words
+    # like "Remote" or "Hybrid" here; those come from _detect_arrangement.
     return "Not specified"
 
 def _detect_arrangement(text: str) -> str:
-    if re.search(r"fully remote|100% remote|work from home|wfh", text, re.IGNORECASE):
+    # "Fully remote" signals — including bare \bremote\b (catches "Remote." "Remote-first" etc.)
+    # Safe because hybrid/on-site are checked first; bare "remote" without those = fully remote.
+    if re.search(r"fully remote|100% remote|work from home|wfh|\bremote.?first\b|\bremote.?only\b", text, re.IGNORECASE):
         return "Fully remote"
     if re.search(r"\bhybrid\b", text, re.IGNORECASE):
         return "Hybrid"
     if re.search(r"\bon.?site\b|\bin.?office\b|in\s+person\b|on\s+location\b", text, re.IGNORECASE):
         return "On-site"
+    # Bare "remote" with no other arrangement signals → fully remote
+    if re.search(r"\bremote\b", text, re.IGNORECASE):
+        return "Fully remote"
     return "Not specified"
 
 def _detect_flags(text: str) -> dict:
@@ -947,7 +961,7 @@ def _detect_role_type(text: str) -> str:
     """
     # Use ONLY the first non-empty line as the job title — prevents company org descriptions
     # (e.g. "Executive Director of Care at Genesis") from contaminating frontline roles
-    first_line = next((ln.strip() for ln in text.split("\n") if len(ln.strip()) > 3), text[:80])
+    first_line = next((ln.strip() for ln in text.split("\n") if len(ln.strip()) >= 2), text[:80])
     body = text
 
     # Title-level signals: Manager/Director/VP/Head in the job title = people manager
@@ -957,7 +971,9 @@ def _detect_role_type(text: str) -> str:
     ))
     # Body signals: explicit management responsibility described in JD
     body_mgr = bool(re.search(
-        r"manage[sd]?\s+(?:a\s+)?team|direct\s+reports?|people\s+manager|hiring\s+manager"
+        # "direct reports?" excluded as bare phrase — catches "no direct reports" (false pos).
+        # Instead require explicit context: "has/have/your/manage direct reports"
+        r"manage[sd]?\s+(?:a\s+)?team|(?:has|have|your|manage[sd]?)\s+direct\s+reports?|people\s+manager|hiring\s+manager"
         r"|build\s+(?:and\s+grow\s+)?(?:the\s+)?team|grow\s+the\s+team"
         r"|team\s+of\s+\d+\s+(?:engineers?|people|employees?|professionals?)"
         r"|lead\s+(?:and\s+mentor|a\s+team)|manage\s+engineers?"
@@ -968,6 +984,16 @@ def _detect_role_type(text: str) -> str:
         r"|oversee[sd]?\s+(?:a\s+)?team|responsible\s+for\s+(?:a\s+)?team",
         body, re.IGNORECASE
     ))
+    # Explicit IC override: "no direct reports", "IC role", "individual contributor",
+    # "no management responsibilities" — beats title-level signals.
+    # Handles: "Product Manager, no direct reports" → IC, not people_manager.
+    body_ic = bool(re.search(
+        r"no\s+direct\s+reports?|no\s+management\s+responsibilit|individual\s+contributor"
+        r"|\bIC\s+role\b|non.?managerial|no\s+people\s+management",
+        body, re.IGNORECASE
+    ))
+    if body_ic:
+        return "individual_contributor"
     return "people_manager" if (title_mgr or body_mgr) else "individual_contributor"
 
 
@@ -1787,6 +1813,16 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "sources_used":   sources_used,
         "itsma_validated":len(sources_used) >= 3,
         "industry":       industry,
+        # Top-level signals dict — exposed for frontend, tests, and debugging
+        "signals": {
+            "seniority":        seniority,
+            "role_type":        role_type,
+            "arrangement":      arrangement,
+            "location":         location,
+            "salary":           salary,
+            "skills":           skills,
+            **flags,
+        },
         "jd_quality":     jd_quality,
         "llm_provider":   llm_provider,
         "used_fallback":  used_fallback,
