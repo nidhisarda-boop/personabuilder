@@ -756,11 +756,18 @@ def _detect_seniority(text: str) -> str:
     for level in ("executive", "director"):
         if re.search(SENIORITY_RE[level], first_line):
             return level
-    # Senior, manager, junior: check wider body (up to 600 chars)
+    # Junior: check first_line FIRST — prevents "mentored by senior engineers" in the
+    # body from overriding a title like "Junior Frontend Developer" or "Entry-Level Analyst"
+    if re.search(SENIORITY_RE["junior"], first_line):
+        return "junior"
+    # Senior, manager: check wider body (up to 600 chars)
     # senior before manager so "Senior Manager" → "senior"
-    for level in ("senior", "manager", "junior"):
+    for level in ("senior", "manager"):
         if re.search(SENIORITY_RE[level], body_area):
             return level
+    # Junior body fallback (entry-level phrasing only in body, no title match)
+    if re.search(SENIORITY_RE["junior"], body_area):
+        return "junior"
     return "mid"
 
 def _extract_skills(text: str) -> list:
