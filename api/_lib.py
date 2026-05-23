@@ -960,14 +960,15 @@ Return ONLY valid JSON — no markdown fences, no commentary:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MECE ARCHETYPE PAIRS
-# Mutually Exclusive, Collectively Exhaustive persona pairs per (seniority, role_type).
-# Each pair covers the two dominant candidate archetypes for that profile—defined on
-# orthogonal axes: DISC type, core motivation, background style, and context trigger.
-# This replaces the reactive "different DISC from persona 1" approach.
+# MECE ARCHETYPE POOLS
+# Up to 6 Mutually Exclusive, Collectively Exhaustive archetypes per (seniority, role_type).
+# Ordered by market prevalence — first 2 cover ~60% of the candidate market, each
+# additional archetype adds orthogonal coverage up to 6 total.
+# Defined on 4 axes: DISC type, core motivation, background style, context trigger.
+# Call _get_mece_archetypes(seniority, role_type, count) to get the first N.
 # ══════════════════════════════════════════════════════════════════════════════
 
-_MECE_PAIRS: dict = {
+_MECE_ARCHETYPES: dict = {
     # ─── Senior Individual Contributor ───────────────────────────────────────
     ("senior", "individual_contributor"): [
         {
@@ -986,8 +987,40 @@ _MECE_PAIRS: dict = {
             "trigger": "Current team moves too slowly or their work doesn't reach users at meaningful scale.",
             "messaging_angle": "Lead with ownership, scope, and measurable outcomes. Name the scale this JD enables. Avoid org-chart complexity language.",
         },
+        {
+            "archetype_name": "The Collaborative Architect",
+            "disc": "S",
+            "motivation": "Systemic reliability — cares about how the team works together as much as what they build; champions shared standards and cross-team trust.",
+            "background_style": "Long-tenure IC who became the connective tissue of a large engineering org; known for documentation, design reviews, and unblocking others.",
+            "trigger": "Current environment is too fragmented — teams silo and duplicate work, or there's no culture of shared ownership.",
+            "messaging_angle": "Lead with collaboration model, cross-team design culture, and how engineering decisions get made. Show the connective tissue of the org.",
+        },
+        {
+            "archetype_name": "The Thought Leader",
+            "disc": "I",
+            "motivation": "External influence — wants their work to matter beyond the company: conference talks, open source, community reputation.",
+            "background_style": "Active in the industry through writing, speaking, or OSS; known beyond their current employer; career is a platform, not just a job.",
+            "trigger": "Current employer restricts external publication, OSS contribution, or is in a domain with no industry standing.",
+            "messaging_angle": "Lead with company reputation, open source posture, conference presence, and whether engineers here build public credibility. Name recognizable tech the team uses or contributes to.",
+        },
+        {
+            "archetype_name": "The Principal Tech Lead",
+            "disc": "DC",
+            "motivation": "Outcome at quality — drives delivery at pace while holding the line on architecture and craft; will not ship something they'd be embarrassed by.",
+            "background_style": "Has held both IC and tech lead roles; bridges delivery pressure and engineering excellence; trusted by both PMs and engineers.",
+            "trigger": "Current role forces a trade-off between speed and quality that feels unsustainable — either shipping junk or moving too slowly to matter.",
+            "messaging_angle": "Lead with engineering velocity AND quality signals together. Show that the team ships fast and ships well — cite both cadence and technical bar in the JD.",
+        },
+        {
+            "archetype_name": "The Staff Platform Builder",
+            "disc": "SI",
+            "motivation": "Enabling others — finds deep satisfaction in building internal tools, platforms, and foundations that make every other engineer faster.",
+            "background_style": "Evolved from product engineering into platform/infra; motivated by leverage, not personal output; measures success by what the rest of the org can do.",
+            "trigger": "Current company doesn't invest in internal developer experience — tooling is patchy and engineers waste time on undifferentiated work.",
+            "messaging_angle": "Lead with developer experience investment, internal tooling maturity, and the scale impact of platform work. Show how platform decisions are made and funded.",
+        },
     ],
-    # ─── People Manager (senior level) ───────────────────────────────────────
+    # ─── People Manager (senior / engineering manager level) ─────────────────
     ("senior", "people_manager"): [
         {
             "archetype_name": "The Technical Leader",
@@ -1004,6 +1037,38 @@ _MECE_PAIRS: dict = {
             "background_style": "People-first orientation from early career; naturally gravitated toward team health, retention, and psychological safety.",
             "trigger": "Current employer doesn't invest in people development, or the manager is stretched too thin to coach effectively.",
             "messaging_angle": "Lead with team culture, mentorship investment, and how the company grows managers. Show the support structure and headcount for their team.",
+        },
+        {
+            "archetype_name": "The Delivery Manager",
+            "disc": "D",
+            "motivation": "Execution — measures their worth by what ships; drives clarity on priorities, removes blockers fast, and holds the team to commitments.",
+            "background_style": "Often from a product-adjacent or high-growth background; comfortable in ambiguity; known for unblocking teams and shipping on time.",
+            "trigger": "Current org is indecisive — too many priorities, unclear roadmap, or delivery that slips without accountability.",
+            "messaging_angle": "Lead with product velocity, roadmap clarity, and how decisions get made. Show the team ships regularly and has a clear north star.",
+        },
+        {
+            "archetype_name": "The Culture Builder",
+            "disc": "I",
+            "motivation": "Team identity and belonging — believes team culture is a competitive advantage; invests in rituals, psychological safety, and team reputation.",
+            "background_style": "Known inside and outside their team for building high-energy, high-trust environments; often has strong hiring and retention track record.",
+            "trigger": "Current team has turnover, low morale, or a culture that doesn't reflect what they want to lead.",
+            "messaging_angle": "Lead with team culture, hiring quality, retention metrics, and what distinguishes this team. Show the social fabric of the engineering org.",
+        },
+        {
+            "archetype_name": "The Engineering Excellence Lead",
+            "disc": "CD",
+            "motivation": "Operational discipline — closes the gap between engineering quality and delivery pace; builds the processes that let both coexist.",
+            "background_style": "Strong IC who moved into management precisely to fix the system-level issues slowing their team down; has introduced and improved engineering practices at scale.",
+            "trigger": "Current team ships but accumulates hidden debt, or the opposite — high standards but slow velocity that frustrates stakeholders.",
+            "messaging_angle": "Lead with engineering process maturity — sprint cadence, incident reviews, code review culture, and on-call health. Show the team has discipline without bureaucracy.",
+        },
+        {
+            "archetype_name": "The Growth Manager",
+            "disc": "IS",
+            "motivation": "People and org growth — wants to scale the team, build the next layer of management, and be known for the careers they've launched.",
+            "background_style": "Manager of managers or on-track for it; has hired and promoted ICs into senior and staff roles; career is measured in the people they've developed.",
+            "trigger": "Current scope is too narrow — wants a larger team, more headcount to hire, or a real people-growth mandate.",
+            "messaging_angle": "Lead with team size trajectory, headcount budget, and internal promotion rates. Show this is a place where great managers make other great managers.",
         },
     ],
     # ─── Director / Head of ───────────────────────────────────────────────────
@@ -1024,6 +1089,38 @@ _MECE_PAIRS: dict = {
             "trigger": "Inherited or is inheriting a team that needs rebuilding — sees this as the core challenge worth solving.",
             "messaging_angle": "Lead with team quality, hiring bar, and investment in people. Show caliber of existing leadership and career growth trajectory within the org.",
         },
+        {
+            "archetype_name": "The Execution Director",
+            "disc": "D",
+            "motivation": "Delivery at scale — holds multiple teams to shared commitments; cuts through complexity to keep the org shipping.",
+            "background_style": "P&L or delivery-facing background; has run large programs or multiple product lines; known for ending ambiguity and driving decisions.",
+            "trigger": "Current org has too many initiatives in flight with unclear ownership — wants to run a tighter, more accountable operation.",
+            "messaging_angle": "Lead with delivery track record, product scope, and decision-making authority. Show how many teams report up, what they ship, and how priorities are set.",
+        },
+        {
+            "archetype_name": "The Team Builder Director",
+            "disc": "S",
+            "motivation": "Organizational stability — builds cultures where people stay, grow, and do their best work without burning out.",
+            "background_style": "Known for low attrition and high internal promotion rates; creates environments of trust and clear career ladders.",
+            "trigger": "Current org has high turnover or a toxic subculture that leadership hasn't fixed — sees org health as an urgent business problem.",
+            "messaging_angle": "Lead with retention data, culture investment, and engineering career ladder. Show the org is stable, growing, and cares about the people inside it.",
+        },
+        {
+            "archetype_name": "The Technical Director",
+            "disc": "CD",
+            "motivation": "Technical strategy — sets the architectural direction for the engineering org and ensures technical decisions support long-term business goals.",
+            "background_style": "Principal or Staff engineer who moved into director-level leadership while staying hands-on with technical direction; trusted by both ICs and executives.",
+            "trigger": "Current company's technical strategy is reactive or underfunded — architecture accumulates debt without a long-term owner.",
+            "messaging_angle": "Lead with engineering org's technical roadmap, architecture review processes, and how technical decisions are made at the leadership level.",
+        },
+        {
+            "archetype_name": "The Culture Director",
+            "disc": "IS",
+            "motivation": "Org identity — builds engineering brands people want to join and shapes cultures that attract and retain A-players.",
+            "background_style": "Known externally for building great teams; active in communities, conferences, or employer brand initiatives; treats culture as a product.",
+            "trigger": "Current org has no employer brand, high attrition, or a culture that doesn't reflect what they believe engineering should look like.",
+            "messaging_angle": "Lead with employer brand, team reputation, engineering blog, and conference presence. Show the team is known for something worth joining.",
+        },
     ],
     # ─── Executive (VP, C-suite) ─────────────────────────────────────────────
     ("executive", "people_manager"): [
@@ -1042,6 +1139,38 @@ _MECE_PAIRS: dict = {
             "background_style": "Career defined by org-building and mission alignment; known for attracting and retaining exceptional people around a compelling narrative.",
             "trigger": "Current role lacks blank-sheet-of-paper opportunity or company mission is no longer personally compelling.",
             "messaging_angle": "Lead with company mission, cultural opportunity, and what can be built. Name the transformation horizon and caliber of people they'd build it with.",
+        },
+        {
+            "archetype_name": "The Systems Thinker",
+            "disc": "C",
+            "motivation": "Durable architecture — builds orgs, processes, and platforms that scale without breaking; treats the org itself as a system to be designed.",
+            "background_style": "Technical executive or former principal-turned-VP; brings engineering rigor to org design, planning cycles, and resource allocation.",
+            "trigger": "Current company's org model can't scale — they've hit the ceiling of informal coordination and need someone to build the operating system.",
+            "messaging_angle": "Lead with operating model, planning cadence, and org design intentionality. Show the company thinks structurally about how engineering scales.",
+        },
+        {
+            "archetype_name": "The People-First Executive",
+            "disc": "S",
+            "motivation": "Long-term retention — believes great companies are built on low attrition and high trust; culture is the product strategy.",
+            "background_style": "CHRO-adjacent executive or engineering leader known for psychological safety and employer brand; has built orgs where people stay 5+ years.",
+            "trigger": "Current company has a talent problem — high churn, mediocre hiring bar, or a culture that burns people out.",
+            "messaging_angle": "Lead with retention stats, DEI investment, career ladder, and psychological safety. Show the org as a place people build careers, not just jobs.",
+        },
+        {
+            "archetype_name": "The Technical Executive",
+            "disc": "DC",
+            "motivation": "Technical leverage at business scale — makes bets on platform, infra, and architecture that determine the company's technical ceiling for years.",
+            "background_style": "CTO or VP Eng who came up through a deep technical track; still engages with architecture decisions and technical hiring; credible with investors and ICs alike.",
+            "trigger": "Current company underinvests in technical foundation — shipping fast now but accumulating structural debt that will limit future growth.",
+            "messaging_angle": "Lead with technical strategy, platform investment, and engineering bar at the top. Show that the C-suite values technical excellence as a business driver.",
+        },
+        {
+            "archetype_name": "The Transformational Leader",
+            "disc": "IS",
+            "motivation": "Org-wide change — drives cultural and operational transformation across entire business units; energizes organizations through transitions.",
+            "background_style": "Led companies or divisions through M&A, hypergrowth, or pivots; known for communication, change management, and rallying large orgs.",
+            "trigger": "Current role is in steady state — they want to lead through a significant transformation, not just maintain what exists.",
+            "messaging_angle": "Lead with the transformation arc: what is changing, at what scale, and why this moment matters. Show the executive will have room to reshape, not just maintain.",
         },
     ],
     # ─── Mid-level Individual Contributor (default for most JDs) ─────────────
@@ -1062,6 +1191,38 @@ _MECE_PAIRS: dict = {
             "trigger": "Current role has plateaued — no new problems, no growth, or team has stopped learning together.",
             "messaging_angle": "Lead with learning opportunities, team caliber, and how this role accelerates their career. Name recent initiatives the team shipped or challenges ahead.",
         },
+        {
+            "archetype_name": "The Ambitious Mover",
+            "disc": "D",
+            "motivation": "Career acceleration — wants to compress the timeline to senior/staff; optimises for scope, ownership, and promotable impact.",
+            "background_style": "Strong performer at their current company but hitting a ceiling — promo process is slow, or the org can't give them the scope they're ready for.",
+            "trigger": "Has outgrown their current role and title — actively looking for a step up in ownership, not just a lateral move.",
+            "messaging_angle": "Lead with promotion trajectory, scope of ownership from day one, and examples of ICs who've grown quickly here. Show the path to senior is real.",
+        },
+        {
+            "archetype_name": "The Reliable Builder",
+            "disc": "S",
+            "motivation": "Stability and craft — wants a role they can grow deeply into, on a team with low turnover and high trust.",
+            "background_style": "Mid-career with 3–6 years; has found a domain they love and wants to go deeper, not wider; values consistency over novelty.",
+            "trigger": "Current team has high attrition or constant context-switching — they want to join somewhere people stay and ship meaningful work over time.",
+            "messaging_angle": "Lead with team tenure, project continuity, and what the average day looks like. Show this is a team that invests in its people and their work.",
+        },
+        {
+            "archetype_name": "The Senior-Track IC",
+            "disc": "DC",
+            "motivation": "Scope expansion — wants to move from execution to influence; ready to lead projects, mentor juniors, and own architectural decisions.",
+            "background_style": "3–5 years in; strong individual performer who is being tapped for leadership responsibilities but hasn't been given the title yet.",
+            "trigger": "Doing senior work without senior recognition or compensation — looking for a company that will formally invest in their growth.",
+            "messaging_angle": "Lead with clear senior promotion criteria, the kind of projects they'd own, and examples of recent mid-level-to-senior promotions. Be specific.",
+        },
+        {
+            "archetype_name": "The Community-Engaged Contributor",
+            "disc": "IS",
+            "motivation": "Connection and belonging — wants to work on a team with a strong social fabric and industry presence; career and community are intertwined.",
+            "background_style": "Active in their local tech community, Slack groups, or online forums; values colleagues they can learn from and be energized by; may be selective based on team vibes.",
+            "trigger": "Current job is technically fine but isolated — no team culture, no external presence, and no sense of shared mission.",
+            "messaging_angle": "Lead with team events, community involvement, engineering blog, and what makes this team's culture distinctive. Show the team as a community, not just a headcount.",
+        },
     ],
     # ─── Mid-level People Manager ─────────────────────────────────────────────
     ("mid", "people_manager"): [
@@ -1080,6 +1241,38 @@ _MECE_PAIRS: dict = {
             "background_style": "People-first orientation; natural coach; built early credibility through team health and low attrition.",
             "trigger": "Wants an org that invests in manager development and gives them real tools to grow their reports.",
             "messaging_angle": "Lead with mentorship programs, 1:1 investment, and manager support structures. Show what team culture looks like at this company.",
+        },
+        {
+            "archetype_name": "The Execution-First Manager",
+            "disc": "D",
+            "motivation": "Delivery — measures success by what the team ships; clears blockers, sets clear priorities, and holds people accountable.",
+            "background_style": "PM or tech lead background; comfortable with ambiguity and tight deadlines; known for getting things across the line.",
+            "trigger": "Current org has an unclear roadmap or too many competing priorities — wants to own a tight scope and drive it to completion.",
+            "messaging_angle": "Lead with roadmap clarity, delivery cadence, and how priorities are set. Show the team ships on a predictable rhythm.",
+        },
+        {
+            "archetype_name": "The Culture Builder",
+            "disc": "I",
+            "motivation": "Team energy and identity — believes the best teams have a distinct culture and invests in building it deliberately.",
+            "background_style": "Known for high team NPS and retention; builds rituals, onboarding, and social fabric intentionally.",
+            "trigger": "Current team has no culture by design — attrition is high and nobody has made it a priority.",
+            "messaging_angle": "Lead with team culture, onboarding experience, and retention. Show this is a team people choose to join and choose to stay on.",
+        },
+        {
+            "archetype_name": "The Tech-Lead Manager",
+            "disc": "CD",
+            "motivation": "Bridging execution and craft — manages by staying close to the code; drives technical decisions alongside delivery.",
+            "background_style": "New or recent manager who still contributes technically; not ready to go fully hands-off; wants to grow into senior leadership while staying grounded.",
+            "trigger": "Current role is pushing them to go fully hands-off before they're ready — wants an org that values technical depth in managers.",
+            "messaging_angle": "Lead with how much managers stay technical here and what the path from tech lead to senior manager looks like. Show this is not a forced choice.",
+        },
+        {
+            "archetype_name": "The People-First Operator",
+            "disc": "DS",
+            "motivation": "Balanced accountability — runs a team that meets its commitments without burning people out; holds delivery AND wellbeing as non-negotiables.",
+            "background_style": "Mid-career manager who learned from a burnout-heavy environment early in their career; now builds sustainable team norms as a personal mission.",
+            "trigger": "Current org optimises only for velocity — people are burning out, and leadership doesn't see it as a problem.",
+            "messaging_angle": "Lead with team sustainability, on-call health, workload norms, and how the company thinks about manager wellbeing. Show this is a sane place to lead.",
         },
     ],
     # ─── Junior / Entry-level IC ──────────────────────────────────────────────
@@ -1100,31 +1293,72 @@ _MECE_PAIRS: dict = {
             "trigger": "Evaluating first or second role carefully — won't accept chaos or sink-or-swim environments.",
             "messaging_angle": "Lead with mentorship programs, code review culture, senior investment in juniors, and psychological safety. Show what onboarding looks like.",
         },
+        {
+            "archetype_name": "The Detail-Oriented Starter",
+            "disc": "C",
+            "motivation": "Getting it right — perfectionist streak; wants to understand the system deeply before shipping; cares about code quality from day one.",
+            "background_style": "Strong academic or self-taught background with a focus on fundamentals; has read books, taken courses, and built careful mental models before entering the workforce.",
+            "trigger": "Scared of joining a team that ships sloppy code — wants to start their career with good habits and good examples.",
+            "messaging_angle": "Lead with code review culture, documentation standards, and how seniors invest in junior quality. Show the team values doing things right, not just fast.",
+        },
+        {
+            "archetype_name": "The Social Learner",
+            "disc": "I",
+            "motivation": "Community and growth — learns best by pairing, asking questions, and being part of an engaged team; wants colleagues as much as a job.",
+            "background_style": "Active in student orgs, hackathons, or online communities; energized by group learning and peer feedback; thrives with open communication norms.",
+            "trigger": "Wants to avoid a remote, quiet, or isolating first job — needs an environment where asking questions is welcomed and celebrated.",
+            "messaging_angle": "Lead with pairing culture, team Slack norms, social onboarding, and how approachable senior engineers are. Show this is a team that talks to each other.",
+        },
+        {
+            "archetype_name": "The Ambitious Precise Builder",
+            "disc": "DC",
+            "motivation": "Fast career growth with high standards — wants to ship real things quickly but refuses to cut corners; has a chip on their shoulder about proving themselves.",
+            "background_style": "Competitive academic or bootcamp background; has something to prove; has already shipped a side project or internship deliverable they're proud of.",
+            "trigger": "Doesn't want to be a CRUD developer for 2 years — wants early exposure to interesting problems with high-quality code.",
+            "messaging_angle": "Lead with what they'll build in their first 6 months, the technical bar of the codebase, and how quickly strong juniors advance here.",
+        },
+        {
+            "archetype_name": "The Mentorship-Seeking Contributor",
+            "disc": "SI",
+            "motivation": "Guided growth — wants a dedicated mentor or buddy, structured feedback, and a clear 6-month ramp plan; values relationship over raw exposure.",
+            "background_style": "First-generation tech professional or career changer; aware of gaps in their network and experience; looking for sponsorship as much as opportunity.",
+            "trigger": "Evaluating whether the team will invest in them personally — not just give them tickets to close.",
+            "messaging_angle": "Lead with formal mentorship programs, buddy systems, structured 30/60/90 plans, and examples of juniors who were sponsored into meaningful work.",
+        },
     ],
 }
 
 
-def _get_mece_pair(seniority: str, role_type: str) -> list:
+def _get_mece_archetypes(seniority: str, role_type: str, count: int = 2) -> list:
     """
-    Return the two MECE archetypes for this (seniority, role_type) combination.
-    Falls back gracefully across tiers.
+    Return `count` MECE archetypes for this (seniority, role_type) combination.
+    Archetypes are ordered by market prevalence — the first 2 cover the broadest
+    candidate segments; each additional one adds orthogonal coverage.
+    `count` is clamped to [2, len(pool)] so callers can request 2–6 safely.
+    Falls back gracefully across tiers when no exact key match exists.
     """
     key = (seniority, role_type)
-    if key in _MECE_PAIRS:
-        return _MECE_PAIRS[key]
-    # People manager fallbacks
-    if role_type == "people_manager":
+    if key in _MECE_ARCHETYPES:
+        pool = _MECE_ARCHETYPES[key]
+    elif role_type == "people_manager":
         if seniority in ("senior", "manager"):
-            return _MECE_PAIRS[("senior", "people_manager")]
-        if seniority == "director":
-            return _MECE_PAIRS[("director", "people_manager")]
-        return _MECE_PAIRS[("executive", "people_manager")]
-    # IC fallbacks by seniority tier
-    if seniority in ("senior", "staff", "principal"):
-        return _MECE_PAIRS[("senior", "individual_contributor")]
-    if seniority == "junior":
-        return _MECE_PAIRS[("junior", "individual_contributor")]
-    return _MECE_PAIRS[("mid", "individual_contributor")]
+            pool = _MECE_ARCHETYPES[("senior", "people_manager")]
+        elif seniority == "director":
+            pool = _MECE_ARCHETYPES[("director", "people_manager")]
+        else:
+            pool = _MECE_ARCHETYPES[("executive", "people_manager")]
+    else:
+        # IC fallbacks by seniority tier
+        if seniority in ("senior", "staff", "principal"):
+            pool = _MECE_ARCHETYPES[("senior", "individual_contributor")]
+        elif seniority == "junior":
+            pool = _MECE_ARCHETYPES[("junior", "individual_contributor")]
+        else:
+            pool = _MECE_ARCHETYPES[("mid", "individual_contributor")]
+
+    # Clamp count to [2, pool size]
+    n = max(2, min(count, len(pool)))
+    return pool[:n]
 
 
 def _detect_role_type(text: str) -> str:
@@ -1900,9 +2134,10 @@ def _extract_jd_excerpt(text: str, max_chars: int = 1000) -> str:
 # 10. CORE BUILD FUNCTION — Multi-source, ITSMA ≥3 sources
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _build_persona_response(text: str, source_label: str, li_signals: dict = None) -> dict:
+def _build_persona_response(text: str, source_label: str, li_signals: dict = None, num_personas: int = 2) -> dict:
     """
     Build a full PersonaResponse from raw text + optional LinkedIn signals.
+    num_personas: how many MECE personas to generate (2–6, default 2).
     Uses ≥3 data sources per ITSMA best practice.
     """
     industry    = _detect_industry(text)
@@ -1981,6 +2216,9 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     if li and li.get("source") != "none": sources_used.append(li.get("source", "linkedin"))
 
     # ── Assemble signal dict for LLM ──────────────────────────────────────
+    # Clamp num_personas from function arg (already validated by caller, but be safe)
+    num_personas = max(2, min(int(num_personas), 6))
+
     signal_dict = {
         "industry":           industry,
         "seniority":          seniority,
@@ -1990,6 +2228,7 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "location":           location,
         "work_arrangement":   arrangement,
         "jd_excerpt":         jd_excerpt,
+        "num_personas":       num_personas,
         **flags,
         "li_industries":      [i.get("name","") for i in li.get("industries",[])[:5]],
         "li_colleges":        [c.get("name","") for c in li.get("colleges",[])[:5]],
@@ -1999,20 +2238,15 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "sparktoro_subreddits":sparktoro.get("subreddits", [])[:4],
     }
 
-    # ── Persona generation: always 2 MECE personas ───────────────────────────
-    # Get the two principled MECE archetypes for this role profile.
-    # Archetypes are defined upfront on orthogonal axes (DISC, motivation, background)
-    # so the two personas are Mutually Exclusive and Collectively Exhaustive.
-    mece_pair = _get_mece_pair(seniority, role_type)
-    arch1, arch2 = mece_pair[0], mece_pair[1]
+    # ── Persona generation: N MECE personas (2–6) ────────────────────────────
+    # Archetypes are ordered by market prevalence — each additional persona adds
+    # orthogonal DISC/motivation coverage so MECE holds across all N.
+    archetypes = _get_mece_archetypes(seniority, role_type, num_personas)
 
-    p1_signals = {**signal_dict, "persona_variant": 1, "mece_archetype": arch1}
-    p1 = _generate_persona_llm(p1_signals)
-
-    p2_signals = {**signal_dict, "persona_variant": 2, "mece_archetype": arch2}
-    p2 = _generate_persona_llm(p2_signals)
-
-    personas_list = [p1, p2]
+    personas_list = []
+    for i, arch in enumerate(archetypes):
+        p_signals = {**signal_dict, "persona_variant": i + 1, "mece_archetype": arch}
+        personas_list.append(_generate_persona_llm(p_signals))
 
     # ── Channel recommendations (SparkToro-informed) ──────────────────────
     flags_list = [k for k, v in flags.items() if v]
@@ -2099,26 +2333,28 @@ def _cluster_jobs(jobs: list) -> list:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def handle_analyze_jd(body: dict) -> dict:
-    """POST /api/persona-builder/analyze-jd — body: {text, url}"""
-    text = body.get("text", "").strip()
-    url  = body.get("url", "").strip()
+    """POST /api/persona-builder/analyze-jd — body: {text, url, num_personas?}"""
+    text         = body.get("text", "").strip()
+    url          = body.get("url", "").strip()
+    num_personas = int(body.get("numPersonas", body.get("num_personas", 2)))
+    num_personas = max(2, min(num_personas, 6))  # clamp 2–6
 
     if not text and not url:
         return {"error": "Provide 'text' or 'url'"}, 400
 
     if url and not text:
-        cache_key = _cache_key("jd_url", url)
+        cache_key = _cache_key("jd_url", f"{url}:{num_personas}")
         if cached := _l1_get(cache_key):
             return cached
         text = _fetch_url(url)
         if not text:
             return {"error": f"Could not fetch content from {url}"}, 502
 
-    cache_key = _cache_key("jd_text", text[:2000])
+    cache_key = _cache_key("jd_text", f"{text[:2000]}:{num_personas}")
     if cached := _l1_get(cache_key):
         return cached
 
-    result = _build_persona_response(text, "job_description")
+    result = _build_persona_response(text, "job_description", num_personas=num_personas)
     _l1_set(cache_key, result, ttl=3600)
     return result
 
