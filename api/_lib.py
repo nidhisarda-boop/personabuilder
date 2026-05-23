@@ -1329,6 +1329,537 @@ _MECE_ARCHETYPES: dict = {
 }
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PASSIVE CANDIDATE ARCHETYPE POOLS
+# Passive candidates are currently employed, not actively job-hunting, and have
+# a much higher "move" bar than active candidates. They need sourcing + outreach,
+# not job board ads. Defined by latent dissatisfaction trigger, not explicit
+# search intent. Ordered by recruiter-reachability / segment size.
+#
+# 6 universal passive archetypes per role profile:
+#   1. Ambition-Blocked Expert  (D)  — doing the work, not getting the title/scope
+#   2. Culture Refugee          (S)  — strong performer, miserable in their environment
+#   3. Comp-Lagged Specialist   (C)  — below market, hasn't refreshed in 2+ years
+#   4. Mission Drifter          (I)  — company pivoted away from what they joined for
+#   5. Scope-Hungry Grower      (DC) — senior output, mid-level ownership
+#   6. Pre-Burnout Professional (SI) — still employed, emotionally checking out
+# ══════════════════════════════════════════════════════════════════════════════
+
+_MECE_PASSIVE_ARCHETYPES: dict = {
+    # ─── Senior Individual Contributor ───────────────────────────────────────
+    ("senior", "individual_contributor"): [
+        {
+            "archetype_name": "The Promo-Blocked Principal",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Recognition and scope — has been doing Staff/Principal-level work for 12–18 months without the title, leverage, or compensation to match.",
+            "background_style": "High performer at a company with a slow or opaque promo process; passed over once or told to 'wait another cycle'; has a strong portfolio of impact but feels capped.",
+            "latent_trigger": "A confidential conversation showing they'd get the Staff/Principal title, the corresponding scope (e.g. multi-team or multi-product ownership), and a real comp reset.",
+            "outreach_angle": "Lead with the title, the scope of the role, and the fact that their background would let them start at the level they've already been working at. Be specific about what they'd own.",
+            "passive_barrier": "Loyalty to teammates; fear of starting over; uncertain the new place is better — not worse.",
+            "reachability": "LinkedIn InMail, referral from mutual connection, conference or meetup encounter.",
+        },
+        {
+            "archetype_name": "The Environment Escapee",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "Stability in a team worth trusting — not unhappy with the work itself, but exhausted by the people, process, or culture around the work.",
+            "background_style": "Strong IC who joined a company for the mission or tech but found themselves in a dysfunctional team, bad manager, or high-attrition environment.",
+            "latent_trigger": "Evidence that the team they'd join is healthy — low attrition, genuine manager investment, peers they'd be proud to work with.",
+            "outreach_angle": "Lead with team culture, manager tenure, and team stability signals. Never lead with comp or prestige — they're not motivated by that. They want to trust the people around them.",
+            "passive_barrier": "Exhausted from the search for 'the right place'; worried it'll be the same everywhere; protective of their remaining energy.",
+            "reachability": "Warm referral from someone who worked on the team. Avoid cold InMail — they're skeptical of anything that sounds like recruiting.",
+        },
+        {
+            "archetype_name": "The Market-Lagged Expert",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Fair compensation for rare expertise — has developed deep, hard-to-replace skills and suspects (or knows) they're being significantly underpaid versus market.",
+            "background_style": "Long-tenure specialist at a company that doesn't do transparent or frequent comp reviews; has accumulated leverage but hasn't acted on it; doing comp research quietly.",
+            "latent_trigger": "A credible, specific comp number that makes the gap concrete. They already suspect the gap exists — they just need confirmation it's real and the role is worth the disruption.",
+            "outreach_angle": "Be direct about comp range upfront. Lead with the technical scope to establish credibility, then name the comp. Avoid vague 'competitive package' language — they've heard it before.",
+            "passive_barrier": "Inertia and transition cost; not sure if it's worth the disruption; loyal to their accumulated technical context.",
+            "reachability": "Targeted LinkedIn outreach with explicit comp range in the first message. Technical community Slack groups or Discord servers.",
+        },
+        {
+            "archetype_name": "The Mission-Disappointed Builder",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Work that matters again — joined for a mission they believed in, but the product has pivoted, been acquired, or deprioritized in ways that feel like a betrayal.",
+            "background_style": "IC who self-selected into a mission-driven company; has stayed longer than rational because of team loyalty; now working on something they privately think is meaningless.",
+            "latent_trigger": "A clear, specific articulation of what they'd be building, why it matters, and who benefits. Mission needs to pass their personal 'does this make the world better?' filter.",
+            "outreach_angle": "Lead with what the product does and who it helps. The mission has to be real — they've been fooled by vague mission statements before. Specificity is credibility.",
+            "passive_barrier": "Guilt about leaving teammates; worried they'll make the wrong call again; not sure if anywhere is truly mission-aligned.",
+            "reachability": "Engineering blog posts, conference talks, open source contributions, community Slack groups for their domain.",
+        },
+        {
+            "archetype_name": "The Ceiling-Hitting Tech Lead",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Real architectural ownership — leads technically but the decisions always get overridden upstream; wants a role with actual authority, not just influence.",
+            "background_style": "Senior IC who de facto leads technical direction for their team but has no formal authority over infrastructure, platform, or cross-team standards.",
+            "latent_trigger": "A role where they'd be the last decision-maker on a meaningful architectural domain — not a consultant to a decision-maker.",
+            "outreach_angle": "Be explicit about decision authority and what they'd own end-to-end. Name the scope of the architecture (infra, platform, a product line) and who they'd report to. Show reporting line clarity.",
+            "passive_barrier": "Comfortable with their current technical context; risk of losing knowledge capital; not sure if 'Staff Engineer' at a new company is better or worse.",
+            "reachability": "Engineering blog, conference talks, GitHub activity, internal referrals from engineers who've worked with them.",
+        },
+        {
+            "archetype_name": "The Quietly Burning Out Senior",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "Sustainable pace with interesting work — still capable and motivated, but the current environment has been grinding them down; looking for a reset before it becomes permanent.",
+            "background_style": "3–7 year IC who survived a hypergrowth or firefighting phase; once energized, now defensive of their energy; has started optimizing for 'manageable' over 'exciting'.",
+            "latent_trigger": "A team that ships meaningful work at a pace that doesn't require heroics — proof that the environment is sustainable, not just described as sustainable.",
+            "outreach_angle": "Lead with team norms, on-call health, and sustainable engineering practices. Avoid heroic language ('fast-paced', 'move fast'). They've been there and don't want to go back.",
+            "passive_barrier": "Too tired to interview; scared the new place will be worse; unsure if they have the energy to start over.",
+            "reachability": "Warm referral only. Cold outreach hits their cynicism filter. A peer who can vouch for the team culture is worth 10 InMail messages.",
+        },
+    ],
+    # ─── People Manager (senior / engineering manager level) ─────────────────
+    ("senior", "people_manager"): [
+        {
+            "archetype_name": "The Director-Ready Manager",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Scope and title progression — has been managing effectively for 2–3 years, ready for a director title and multi-team ownership, but their current org has no headroom.",
+            "background_style": "Engineering manager at a company with a flat leadership structure or slow headcount growth; managed through a successful product launch or reorg but sees no path upward.",
+            "latent_trigger": "A director or senior manager role with more headcount, cross-team scope, and a clear path to VP.",
+            "outreach_angle": "Lead with team size, scope of ownership, and explicit statement that this role is positioned as a step up. Name the current director/VP they'd report to.",
+            "passive_barrier": "Reluctant to give up team they've built; worried about political navigation at a new company.",
+            "reachability": "LinkedIn InMail, referral from a peer manager, engineering leadership communities.",
+        },
+        {
+            "archetype_name": "The Manager in a Broken Culture",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "Leading a team that's actually healthy — currently managing in a high-attrition, low-trust environment; spending more time on damage control than people development.",
+            "background_style": "Strong people manager stuck in a dysfunctional org; has tried to shield their team but is running out of runway; quietly researching exit options.",
+            "latent_trigger": "Evidence of a healthy engineering culture with low attrition, supportive leadership, and real investment in manager development.",
+            "outreach_angle": "Lead with retention data, psychological safety, and what the org does for managers. Show the culture from the outside — not just described, but evidenced.",
+            "passive_barrier": "Feels responsible for their current team; scared of repeating the same mistake.",
+            "reachability": "Engineering leadership Slack communities, warm referral from a manager who trusts the culture.",
+        },
+        {
+            "archetype_name": "The Underpaid Technical Manager",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Market-rate compensation — knows their technical depth and people leadership combination is rare but hasn't tested the market in 2+ years.",
+            "background_style": "IC-to-manager with strong technical credibility; at a company that doesn't benchmark manager comp aggressively; has a nagging sense they're underpaid.",
+            "latent_trigger": "A direct, credible comp range that reflects both their technical and management track record.",
+            "outreach_angle": "Open with comp range and engineering bar. They're evaluating whether the disruption is worth it — give them the numbers to make the calculation.",
+            "passive_barrier": "Comfortable with their technical context; transition cost of rebuilding credibility in a new org.",
+            "reachability": "LinkedIn outreach with explicit comp range, engineering leadership conferences.",
+        },
+        {
+            "archetype_name": "The Lost-Mission EM",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Leading a team on work that matters — joined for a product mission but now manages a maintenance team or a legacy platform they don't believe in.",
+            "background_style": "People-driven manager who cares deeply about what their team builds; currently managing a team whose work feels disconnected from any meaningful user impact.",
+            "latent_trigger": "A team building something they'd be proud to recruit for — where the product roadmap is exciting and the manager can sell it honestly.",
+            "outreach_angle": "Lead with what the team builds, who uses it, and why it matters. Give them something real to be excited about — they'll recruit for it if they believe in it.",
+            "passive_barrier": "Loyalty to their current team members; worried about abandoning people who depend on them.",
+            "reachability": "Engineering blog, Slack community leadership forums, referral from engineers on the team.",
+        },
+        {
+            "archetype_name": "The Scope-Starved Manager",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Cross-functional ownership — currently managing a single small team with no influence on product strategy or cross-team direction; wants a broader mandate.",
+            "background_style": "Effective EM who has solved their current team's challenges and is now bored; ready for a larger team, multi-team scope, or a director-track role.",
+            "latent_trigger": "A role with meaningful headcount growth, cross-team responsibilities, or a seat at product planning conversations.",
+            "outreach_angle": "Be specific about team size, reporting structure, and what decisions they'd have influence over. Scope and authority are the hook.",
+            "passive_barrier": "Risk of looking like a lateral move; not sure new scope is real or will materialize.",
+            "reachability": "LinkedIn, referral from a director or VP who can vouch for the scope being real.",
+        },
+        {
+            "archetype_name": "The Burning-Out People Lead",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "A manageable, purposeful workload — currently absorbing team dysfunction, leadership gaps above them, and product chaos; giving more than they're getting back.",
+            "background_style": "High-empathy manager who never learned to protect their own energy; team runs well because they've absorbed all the friction from above and below.",
+            "latent_trigger": "A role with a clear scope, a good manager above them, and a team they don't have to rescue from dysfunction on day one.",
+            "outreach_angle": "Lead with manager support, team stability, and what the EM would NOT have to deal with. Removal of negatives is more compelling than positive promises for this archetype.",
+            "passive_barrier": "Too depleted to think about a transition; feels guilty about leaving their team mid-crisis.",
+            "reachability": "Warm referral only. Their guard is high and their energy is low — only a trusted voucher will get through.",
+        },
+    ],
+    # ─── Director / Head of ───────────────────────────────────────────────────
+    ("director", "people_manager"): [
+        {
+            "archetype_name": "The VP-Ready Director",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Executive-level authority — has been driving org-wide impact as a director but has no VP headroom above them; the layer is occupied and isn't moving.",
+            "background_style": "High-performing director at a stable or post-hypergrowth company; has proven they can run a large org but is capped by the current structure.",
+            "latent_trigger": "A VP or Senior Director title with real P&L or product line ownership — not a title inflation, but a genuine step in decision authority.",
+            "outreach_angle": "Open with the title, reporting line, and the scope of what they'd own. Be explicit that this is a promotion, not a lateral move.",
+            "passive_barrier": "Knows the politics of a new company; sceptical of 'VP' titles that are nominal.",
+            "reachability": "Direct LinkedIn outreach from the hiring executive or a trusted peer network referral.",
+        },
+        {
+            "archetype_name": "The Culture-Fled Director",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "Leading in a functional, values-aligned org — currently in a company where leadership values don't match what they model for their teams.",
+            "background_style": "Director known for high-trust, high-retention teams; working in an org where exec behavior contradicts the values they try to instill.",
+            "latent_trigger": "Evidence of exec team alignment on values — how the C-suite actually behaves, not what the company website says.",
+            "outreach_angle": "Lead with specific executive behavior and culture signals. Name people on the leadership team they can research. Avoid culture buzzwords — they know what they mean.",
+            "passive_barrier": "Deep skepticism of culture claims; has been fooled before; protective of their team's stability.",
+            "reachability": "Peer referral from someone who has seen the culture from the inside.",
+        },
+        {
+            "archetype_name": "The Comp-Reset Director",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Market-rate compensation at their level — director comp at their company hasn't kept pace with the market; they haven't benchmarked in 2+ years.",
+            "background_style": "Methodical leader who doesn't make moves impulsively; building a case internally but getting resistance from HR or finance.",
+            "latent_trigger": "A credible, research-backed comp offer that makes the market gap undeniable and the new role worth the disruption.",
+            "outreach_angle": "Be direct about total comp (base + equity). Directors do the math — don't make them guess. Include equity vesting and refresh cadence.",
+            "passive_barrier": "Equity vesting cliff; political capital built over years; fear of starting the credibility game over.",
+            "reachability": "Direct LinkedIn InMail with comp range stated, or executive recruiter introduction.",
+        },
+        {
+            "archetype_name": "The Mission-Misaligned Director",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Leading an org where the mission is personally meaningful — has built strong teams but the company's strategic direction no longer aligns with why they do this work.",
+            "background_style": "Director who joined for a specific product or social mission; company has been acquired, pivoted to enterprise, or lost its original identity.",
+            "latent_trigger": "A mission they can personally believe in and sell to their future team — something real, not PR.",
+            "outreach_angle": "Lead with mission specificity. Name what users or markets they'd serve. Show why this problem is worth solving at this company, in this moment.",
+            "passive_barrier": "Has been burned by mission-washing before; sceptical that any company's stated mission matches daily reality.",
+            "reachability": "Speaking engagements, industry conferences, engineering leadership communities, referral from a mission-credible peer.",
+        },
+        {
+            "archetype_name": "The Blocked-Strategist Director",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Strategic autonomy — develops strong org and technical strategies but has them consistently overridden or watered down by a VP layer that doesn't delegate.",
+            "background_style": "Director with strong strategic instincts working under a micromanaging VP; their plans get modified upward before they can execute.",
+            "latent_trigger": "A role where they'd have real decision authority — explicit clarity on what they own end-to-end without layers second-guessing them.",
+            "outreach_angle": "Be specific about who they'd report to and how that person operates. Name the operating model. Show the VP/exec they'd work with has a track record of delegating.",
+            "passive_barrier": "Doesn't want to trade one micromanager for another; wants to verify the autonomy claim before making a move.",
+            "reachability": "Referral from the hiring VP's direct reports, LinkedIn from the hiring exec directly.",
+        },
+        {
+            "archetype_name": "The Exhausted Builder Director",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "Sustainable leadership at scale — has been the load-bearing wall of a scaling org; absorbed the dysfunction of two reorgs and a leadership vacuum above them.",
+            "background_style": "High-empathy director who has over-indexed on protecting their teams; running on fumes; privately worried their leadership quality is declining.",
+            "latent_trigger": "An org with a healthy exec team above them and a mandate that doesn't require them to compensate for systemic dysfunction.",
+            "outreach_angle": "Lead with what would NOT be their problem in this role. Show executive team stability and a healthy org above the role, not just below it.",
+            "passive_barrier": "Deeply depleted; high transition cost; scared the new role will have the same hidden dysfunction.",
+            "reachability": "Warm peer referral only. Skeptical of cold outreach, especially anything that sounds like an exaggerated opportunity.",
+        },
+    ],
+    # ─── Executive (VP, C-suite) ─────────────────────────────────────────────
+    ("executive", "people_manager"): [
+        {
+            "archetype_name": "The C-Suite-Ready VP",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Full P&L ownership — has run a large org with strong results but is one layer below the decision-making table; wants a CTO/CPO or equivalent seat.",
+            "background_style": "Strong VP who has been passed over for C-suite internally or joined a company that hired externally above them; has board-level credibility but lacks the title.",
+            "latent_trigger": "A C-suite role with genuine authority — not an expanded VP title, but a seat where they set the agenda, not execute someone else's.",
+            "outreach_angle": "Open with the reporting structure and the board relationship. Be explicit about what strategic decisions are theirs to make. Exec search firm introduction preferred.",
+            "passive_barrier": "Equity cliff; board relationships built at current company; sceptical of 'fractional' or 'acting' C-suite roles.",
+            "reachability": "Executive search firm (retained), board member referral, peer C-suite network.",
+        },
+        {
+            "archetype_name": "The Values-Broken Executive",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "Executive team alignment — is a strong operator but has lost faith in the character or values of their CEO or board; staying for equity but checking out.",
+            "background_style": "VP or C-1 exec at a company where recent leadership decisions (layoffs mishandled, culture promises broken, ethical compromises) have eroded their commitment.",
+            "latent_trigger": "Evidence that the founding team or CEO is someone they can respect and learn from — not just a compelling pitch, but a track record of principled decisions.",
+            "outreach_angle": "Let them talk to the CEO directly early in the process. They're evaluating the person, not the job description. Give them access, not more collateral.",
+            "passive_barrier": "Equity vesting; public brand tied to current company; fear of burning bridges.",
+            "reachability": "Peer exec referral, board member who knows them personally.",
+        },
+        {
+            "archetype_name": "The Equity-Reset Executive",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Meaningful equity upside — has significant unvested equity at a company where growth has stalled or the exit thesis has weakened; doing the math on staying vs. moving.",
+            "background_style": "Exec at a Series C–E company that has missed milestones, done a down round, or seen its exit horizon pushed out significantly; doing quiet optionality planning.",
+            "latent_trigger": "A credible equity package at a company with a clear, believable path to liquidity — not promises, but business fundamentals that support the exit story.",
+            "outreach_angle": "Lead with equity structure and the exit thesis. Provide data: ARR growth, runway, investor syndicate, comparable exits. They will do the math — give them something real to calculate.",
+            "passive_barrier": "Unvested equity at current company; uncertainty about new company's exit; fear of bad timing.",
+            "reachability": "Executive search firm, investor referral (the portfolio company CEO or board member), peer exec network.",
+        },
+        {
+            "archetype_name": "The Meaning-Seeking Executive",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Legacy and purpose — has achieved financial and career success but is asking 'what do I want the next 10 years to stand for?'; increasingly driven by impact over comp.",
+            "background_style": "Financially secure exec at a company that's technically successful but no longer exciting; may be quietly exploring board seats, advisory roles, or mission-driven orgs.",
+            "latent_trigger": "A mission that could become their 'chapter 2' — something they'd be proud to build regardless of financial outcome.",
+            "outreach_angle": "Lead with mission and impact. Comp is secondary — they need to believe this is a problem worth spending the next decade on. Be honest about the difficulty of the challenge.",
+            "passive_barrier": "Inertia of success; fear of a step down in brand prestige; uncertainty about what 'meaningful' really means for them.",
+            "reachability": "Conference keynotes, board advisory network, peer exec introductions through shared investors.",
+        },
+        {
+            "archetype_name": "The Autonomy-Constrained VP",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Strategic ownership — has strong opinions and execution capability but is in a company where the CEO or founder is highly controlling; their strategy keeps getting overridden.",
+            "background_style": "VP at a founder-led company where the founder hasn't fully transitioned to a CEO model; the VP's role is more execution than strategy.",
+            "latent_trigger": "A role with genuine strategic ownership — evidence that the exec team runs the business, not just executes the founder's intuition.",
+            "outreach_angle": "Be specific about decision rights and governance. Name what decisions are the VP's to make unilaterally vs. collaboratively. Founder-operator dynamic matters — address it directly.",
+            "passive_barrier": "Comfortable with the product domain; has built credibility in a specific technical/market area they'd have to rebuild.",
+            "reachability": "Executive recruiter who can provide candid color on the leadership model, peer network referral.",
+        },
+        {
+            "archetype_name": "The Quietly Exiting Executive",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "A genuinely sustainable leadership environment — has been the company's shock absorber through a difficult period; privately planning their exit but not in a rush.",
+            "background_style": "Exec who has stayed through a turnaround, a difficult board situation, or a values-misaligned period out of loyalty; their team doesn't know they're thinking about leaving.",
+            "latent_trigger": "An org where the culture is genuinely healthy at the top, not just described as healthy — a place where they can lead without constantly managing upward dysfunction.",
+            "outreach_angle": "Be patient and relationship-first. This archetype doesn't respond to urgency. A first conversation about their career, not the role, is the right opener.",
+            "passive_barrier": "Loyalty to their team; emotional cost of leaving after investing so much; fear of looking like they're abandoning ship.",
+            "reachability": "Executive coach network, peer C-suite introduction, long-term exec recruiter relationship.",
+        },
+    ],
+    # ─── Mid-level Individual Contributor ─────────────────────────────────────
+    ("mid", "individual_contributor"): [
+        {
+            "archetype_name": "The Promo-Blocked Mid",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Overdue title and scope — has been performing at the next level but the promo cycle has passed them twice; not angry yet, but the clock is running out.",
+            "background_style": "3–5 year engineer doing senior-level work without the title; got a 'not yet' with vague criteria; starting to look at other options quietly.",
+            "latent_trigger": "A role that starts at senior level — an immediate title match to the work they're already doing, not a promise that it might happen.",
+            "outreach_angle": "Lead with the level and what they'd own from day one. Name specific projects or systems they'd be responsible for. Be clear it's a senior-level offer, not a senior-track offer.",
+            "passive_barrier": "Loyalty to their team; hope that the next promo cycle is different; transition cost of rebuilding context.",
+            "reachability": "LinkedIn, GitHub profile, internal referral from a colleague who's already at the company.",
+        },
+        {
+            "archetype_name": "The Quiet Unhappy Mid",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "A team worth staying on — technically competent but drained by team dynamics, a bad manager, or a high-attrition environment that keeps resetting their context.",
+            "background_style": "Mid-level IC who has been at a company 2–4 years and has seen too many teammates leave; starting to wonder if they're the problem or the company is.",
+            "latent_trigger": "A stable team with low attrition where they could go deep on a problem over multiple years without the environment constantly resetting.",
+            "outreach_angle": "Lead with team tenure, manager stability, and what the average IC's tenure looks like. They want to join somewhere people stay.",
+            "passive_barrier": "Not sure if anywhere is actually better; scared of going somewhere worse.",
+            "reachability": "Peer referral from a current team member who can speak to the culture honestly.",
+        },
+        {
+            "archetype_name": "The Quietly Underpaid Mid",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Market-rate pay for their skills — has been doing good work at a company that doesn't proactively revisit comp; is doing research and doesn't like what they're finding.",
+            "background_style": "2–5 year IC at a company with infrequent or below-market raises; looked at levels.fyi or Glassdoor recently and saw a gap; not in a rush but noticing.",
+            "latent_trigger": "A concrete comp number that closes the gap — they're not looking to get rich, just to be paid fairly for what they do.",
+            "outreach_angle": "State the comp range in the first message. For this archetype, vague outreach is filtered immediately. They've been gaslit by 'competitive comp' enough times.",
+            "passive_barrier": "Low risk tolerance; comfortable with the known; transition risk feels high for a comp correction.",
+            "reachability": "LinkedIn InMail with explicit comp, engineering community Slack groups, job board browsing in private mode.",
+        },
+        {
+            "archetype_name": "The Disconnected Builder",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Work that connects to real user impact — currently building features that feel disconnected from users; unclear if anything they ship matters.",
+            "background_style": "Mid-level IC at a company with a weak product sense or an internal tools focus; shipped a lot but doesn't know if any of it moved a metric they care about.",
+            "latent_trigger": "A product with clear user feedback loops — evidence that the team knows if what they ship works, and that they care.",
+            "outreach_angle": "Lead with product culture and how the team stays close to users. Mention metrics, user research, or feedback loops. Show them they'd see their work matter.",
+            "passive_barrier": "Comfortable with their current stack and team; unsure if 'user impact' is real at any company or just marketing.",
+            "reachability": "Product/engineering community Slack groups, engineering blog comments, Twitter/X tech communities.",
+        },
+        {
+            "archetype_name": "The Under-Challenged Mid",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Harder problems — has mastered their current domain and is bored; the work is comfortable but no longer challenging; privately worried they're getting dumber.",
+            "background_style": "Strong mid-level IC who's become the team expert in their area and now mostly answers questions and reviews PRs rather than solving hard problems.",
+            "latent_trigger": "A role with unsolved, genuinely hard technical problems at a scale or complexity they haven't encountered before.",
+            "outreach_angle": "Lead with the technical challenge. Name the hard problem — don't just say 'interesting work'. If there's scale, complexity, or novelty, name it specifically.",
+            "passive_barrier": "Comfortable with their current expertise; fear of being a beginner again; don't want to take a step back in perceived seniority.",
+            "reachability": "Technical blog comments, open source contributions, conference talks or workshops in their domain.",
+        },
+        {
+            "archetype_name": "The Drifting Coaster",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "Renewed purpose — has been at the same company long enough that muscle memory runs the job; not unhappy exactly, but knows they've stopped growing.",
+            "background_style": "4–7 year IC who optimized for comfort after a difficult period; still competent but not applying themselves; occasionally wonders if they've become too comfortable.",
+            "latent_trigger": "A compelling enough opportunity that makes continuing to coast feel like an obvious mistake — has to be specific, credible, and represent a meaningful step up.",
+            "outreach_angle": "Don't sell the role hard — plant a specific question about their current situation that activates their latent dissatisfaction. The role sells itself once they admit they've stopped growing.",
+            "passive_barrier": "High inertia; good enough is comfortable; social cost of leaving a team that depends on them.",
+            "reachability": "Warm referral from a peer they respect; someone who can say 'this is the kind of work you used to get excited about'.",
+        },
+    ],
+    # ─── Mid-level People Manager ─────────────────────────────────────────────
+    ("mid", "people_manager"): [
+        {
+            "archetype_name": "The Promotion-Stalled EM",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Senior EM or Director title — has been managing effectively for 18+ months, ready for more headcount and cross-team scope, but the org is flat or frozen.",
+            "background_style": "Effective EM at a post-growth company with a tight headcount budget; has grown their team's output but can't grow their team's size.",
+            "latent_trigger": "A senior manager or director-track role with a real path to managing managers within 12–18 months.",
+            "outreach_angle": "Lead with team size trajectory and what the promotion path looks like. Name what senior EM or director criteria look like at this company. Be specific.",
+            "passive_barrier": "Loyalty to their team; uncertain the new place will actually deliver on the growth promise.",
+            "reachability": "LinkedIn, engineering manager Slack communities, referral from a peer EM who's made a similar move.",
+        },
+        {
+            "archetype_name": "The Manager Poorly Supported",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "Being managed well themselves — is a strong people developer but has a bad manager above them; gets no coaching, no advocacy, no air cover.",
+            "background_style": "Good manager who gives their reports what they never got; working for a director or VP who is disengaged, political, or technically out of touch.",
+            "latent_trigger": "A director or VP they'd respect, learn from, and who would actively advocate for them.",
+            "outreach_angle": "Lead with the manager they'd report to — their leadership style, their track record, and how they support their EMs. Make the manager credible and specific.",
+            "passive_barrier": "Not sure if any manager is actually better; scared of jumping from bad to worse.",
+            "reachability": "Referral from someone who can vouch for the hiring manager personally.",
+        },
+        {
+            "archetype_name": "The Comp-Gap EM",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Fair total comp for management scope — has taken on management responsibilities without a proportional comp increase; knows they're underpriced.",
+            "background_style": "IC who transitioned to management at the same company; didn't negotiate hard at transition; has seen new EM hires come in at higher packages.",
+            "latent_trigger": "An offer that reflects management scope — base, equity, and bonus structure that matches their current level of responsibility.",
+            "outreach_angle": "State total comp upfront including any management bonus structure. They've done the internal math and know the gap — confirm it's real with a number.",
+            "passive_barrier": "Team loyalty; uncertainty about whether the new package is actually better after taxes and equity cliff.",
+            "reachability": "LinkedIn InMail with comp stated, engineering manager communities like Rands Leadership Slack.",
+        },
+        {
+            "archetype_name": "The Purpose-Hungry Manager",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Leading a team building something meaningful — currently manages a team on a legacy product or internal tool; wants to be energized by what their team ships.",
+            "background_style": "People-first manager who finds motivation in the mission as much as in the team; currently managing a team whose roadmap they can't sell to new hires with a straight face.",
+            "latent_trigger": "A product area with a clear, exciting roadmap that they can recruit for honestly.",
+            "outreach_angle": "Lead with the team's roadmap and what they'd be building in the next 12 months. If it's exciting, say exactly why. If you can't make it exciting, this archetype won't bite.",
+            "passive_barrier": "Team loyalty; fear of joining a company with a shiny roadmap that evaporates post-hire.",
+            "reachability": "Engineering manager communities, referral from a team member who joined recently.",
+        },
+        {
+            "archetype_name": "The Technically Suffocated EM",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Staying close to the technical work — currently in an EM role that has gone fully hands-off; misses engaging with technical decisions and is feeling distance from the craft.",
+            "background_style": "Strong IC who moved into management but didn't want to go fully non-technical; at a company where managers are expected to be pure people managers.",
+            "latent_trigger": "A role where managers are expected (or at least allowed) to stay technical — reviewing PRs, contributing to architecture decisions, and not being 'people managers only'.",
+            "outreach_angle": "Lead with how technical this EM role is. Name what technical involvement looks like day-to-day. Show they won't have to choose between managing and staying sharp.",
+            "passive_barrier": "Unsure any company truly lets managers stay technical at scale.",
+            "reachability": "GitHub, engineering conference talks, technical leadership communities.",
+        },
+        {
+            "archetype_name": "The Surviving Burnout EM",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "A role that doesn't consume their entire life — currently managing through chaos (constant reorgs, understaffed team, unclear priorities) with no end in sight.",
+            "background_style": "Caring manager who over-invests in their team at the expense of their own wellbeing; has taken on scope that should be distributed across two EMs.",
+            "latent_trigger": "A clearly scoped, adequately staffed team with a director above them who understands workload limits.",
+            "outreach_angle": "Lead with team size, how priorities are set, and what support structure exists for EMs. Explain what they would NOT inherit on day one.",
+            "passive_barrier": "Too tired to interview; worried new role will have the same hidden chaos.",
+            "reachability": "Warm referral only. Too depleted for cold outreach to feel worth responding to.",
+        },
+    ],
+    # ─── Junior / Entry-level IC ──────────────────────────────────────────────
+    ("junior", "individual_contributor"): [
+        {
+            "archetype_name": "The Growth-Starved Junior",
+            "disc": "D",
+            "activity_level": "passive",
+            "motivation": "Faster learning and real ownership — has been in their first role 12–18 months, doing repetitive tickets with no mentorship or increasing scope.",
+            "background_style": "Junior who hit the ground running but found themselves stuck in a backlog of small tasks with no one investing in their growth; starting to feel their career is stalling.",
+            "latent_trigger": "Evidence of a structured ramp-up that leads to real ownership within 6–9 months — a trajectory, not just a promise.",
+            "outreach_angle": "Lead with a specific 30/60/90 plan and what they'd own by month 6. Show, don't tell. Vague 'great learning opportunity' language won't move them.",
+            "passive_barrier": "Doesn't want to look like a job hopper after 12–18 months; worried a new company might be worse.",
+            "reachability": "LinkedIn, GitHub, coding community Slack groups, bootcamp alumni networks.",
+        },
+        {
+            "archetype_name": "The Mentorship-Deprived Junior",
+            "disc": "S",
+            "activity_level": "passive",
+            "motivation": "A team that actually invests in them — was told the job would include mentorship and code reviews; in practice, they're on their own and their skills aren't developing.",
+            "background_style": "Junior who needs structure to grow but landed in a sink-or-swim environment; technically surviving but not learning at the rate they hoped.",
+            "latent_trigger": "Concrete evidence that seniors invest in junior growth — paired programming culture, structured code reviews, a named mentor or buddy system.",
+            "outreach_angle": "Lead with the mentorship model. Name who would mentor them, what code review culture looks like, and how much senior time they'd get each week.",
+            "passive_barrier": "Fear that the promise of mentorship won't materialize at the new place either.",
+            "reachability": "Bootcamp alumni groups, college career networks, LinkedIn with specific mention of mentorship culture.",
+        },
+        {
+            "archetype_name": "The Skill-Plateau Junior",
+            "disc": "C",
+            "activity_level": "passive",
+            "motivation": "Technical depth — has been doing CRUD work for 12+ months and feels their skills aren't growing; wants exposure to harder problems and better engineering practices.",
+            "background_style": "Self-taught or bootcamp grad who pushed into a job quickly but landed somewhere with low technical standards; knows they're not developing the skills they need.",
+            "latent_trigger": "A codebase with high engineering standards and colleagues who will challenge them technically.",
+            "outreach_angle": "Lead with the technical bar and what they'd learn in the first year. Name the technologies, practices, and caliber of engineers they'd work alongside.",
+            "passive_barrier": "Doesn't want to be the worst person in the room; scared of failing in a higher-standards environment.",
+            "reachability": "GitHub portfolio, technical Discord servers, engineering bootcamp communities.",
+        },
+        {
+            "archetype_name": "The Isolated Junior",
+            "disc": "I",
+            "activity_level": "passive",
+            "motivation": "Team belonging — working fully remote with no social engineering culture; no peer connection, no watercooler learning, no shared identity with their team.",
+            "background_style": "Junior who thrives in social environments but is stuck in a remote job with async-only communication; learning is slow and motivation is dropping.",
+            "latent_trigger": "A team with an active, social engineering culture — synchronous collaboration, pairing, team rituals, and a sense of shared identity.",
+            "outreach_angle": "Lead with team culture, communication norms, and whether the team is remote, hybrid, or in-person. Show the team exists as a community, not just a Slack workspace.",
+            "passive_barrier": "Remote work offers flexibility they value; worried an in-person requirement trades one problem for another.",
+            "reachability": "Local tech meetups, coding bootcamp communities, LinkedIn with culture signals.",
+        },
+        {
+            "archetype_name": "The Restless Overachiever",
+            "disc": "DC",
+            "activity_level": "passive",
+            "motivation": "Being taken seriously — is clearly one of the strongest juniors at their company but is still treated as a junior in every decision and conversation.",
+            "background_style": "High-output junior who has already exceeded their initial role expectations but hasn't been given more responsibility; itching to contribute above their title.",
+            "latent_trigger": "A team that gives ownership based on demonstrated capability, not tenure — somewhere they could be punching above their weight class within 6 months.",
+            "outreach_angle": "Lead with how quickly strong juniors get real ownership here. Give examples. Show the progression is based on performance, not just time in seat.",
+            "passive_barrier": "Doesn't want to be back at 'junior' in a new environment; worried a new company will also underutilize them.",
+            "reachability": "GitHub profile with strong commit history, bootcamp top-of-class networks, direct LinkedIn outreach from the hiring manager (not a recruiter).",
+        },
+        {
+            "archetype_name": "The Quiet Validator",
+            "disc": "SI",
+            "activity_level": "passive",
+            "motivation": "Confirmation that a better environment exists — not quite unhappy enough to actively look, but when a credible opportunity appears, they evaluate it carefully.",
+            "background_style": "Junior who is fine at their current company but privately wonders if the grass is greener; will engage if approached thoughtfully but won't apply on their own.",
+            "latent_trigger": "A credible, specific opportunity that makes them think 'this is exactly what I wished my current job was' — precise enough to be real.",
+            "outreach_angle": "Be specific about what's different here. Don't just describe the role — describe why this place is different from wherever they currently are. Make it feel honest, not like a pitch.",
+            "passive_barrier": "Low urgency; generally comfortable; won't make a move without very high conviction.",
+            "reachability": "Warm peer referral is the only reliable channel. They're not browsing anything actively.",
+        },
+    ],
+}
+
+
+def _get_passive_archetypes(seniority: str, role_type: str, count: int = 3) -> list:
+    """
+    Return `count` passive candidate archetypes for this (seniority, role_type).
+    Passive candidates are currently employed and need outreach, not job board ads.
+    `count` is clamped to [1, len(pool)]. Default is 3.
+    """
+    key = (seniority, role_type)
+    if key in _MECE_PASSIVE_ARCHETYPES:
+        pool = _MECE_PASSIVE_ARCHETYPES[key]
+    elif role_type == "people_manager":
+        if seniority in ("senior", "manager"):
+            pool = _MECE_PASSIVE_ARCHETYPES[("senior", "people_manager")]
+        elif seniority == "director":
+            pool = _MECE_PASSIVE_ARCHETYPES[("director", "people_manager")]
+        else:
+            pool = _MECE_PASSIVE_ARCHETYPES[("executive", "people_manager")]
+    else:
+        if seniority in ("senior", "staff", "principal"):
+            pool = _MECE_PASSIVE_ARCHETYPES[("senior", "individual_contributor")]
+        elif seniority == "junior":
+            pool = _MECE_PASSIVE_ARCHETYPES[("junior", "individual_contributor")]
+        else:
+            pool = _MECE_PASSIVE_ARCHETYPES[("mid", "individual_contributor")]
+
+    n = max(1, min(count, len(pool)))
+    return pool[:n]
+
+
 def _get_mece_archetypes(seniority: str, role_type: str, count: int = 2) -> list:
     """
     Return `count` MECE archetypes for this (seniority, role_type) combination.
@@ -2134,10 +2665,12 @@ def _extract_jd_excerpt(text: str, max_chars: int = 1000) -> str:
 # 10. CORE BUILD FUNCTION — Multi-source, ITSMA ≥3 sources
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _build_persona_response(text: str, source_label: str, li_signals: dict = None, num_personas: int = 2) -> dict:
+def _build_persona_response(text: str, source_label: str, li_signals: dict = None,
+                            num_personas: int = 2, num_passive: int = 0) -> dict:
     """
     Build a full PersonaResponse from raw text + optional LinkedIn signals.
-    num_personas: how many MECE personas to generate (2–6, default 2).
+    num_personas: how many active MECE personas to generate (2–6, default 2).
+    num_passive:  how many passive candidate personas to generate (0–6, default 0).
     Uses ≥3 data sources per ITSMA best practice.
     """
     industry    = _detect_industry(text)
@@ -2216,8 +2749,9 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     if li and li.get("source") != "none": sources_used.append(li.get("source", "linkedin"))
 
     # ── Assemble signal dict for LLM ──────────────────────────────────────
-    # Clamp num_personas from function arg (already validated by caller, but be safe)
+    # Clamp counts (already validated by caller, but be safe)
     num_personas = max(2, min(int(num_personas), 6))
+    num_passive  = max(0, min(int(num_passive),  6))
 
     signal_dict = {
         "industry":           industry,
@@ -2229,6 +2763,7 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "work_arrangement":   arrangement,
         "jd_excerpt":         jd_excerpt,
         "num_personas":       num_personas,
+        "num_passive":        num_passive,
         **flags,
         "li_industries":      [i.get("name","") for i in li.get("industries",[])[:5]],
         "li_colleges":        [c.get("name","") for c in li.get("colleges",[])[:5]],
@@ -2247,6 +2782,42 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
     for i, arch in enumerate(archetypes):
         p_signals = {**signal_dict, "persona_variant": i + 1, "mece_archetype": arch}
         personas_list.append(_generate_persona_llm(p_signals))
+
+    # ── Passive candidate personas ────────────────────────────────────────
+    # Passive archetypes define latent-dissatisfaction triggers and outreach
+    # strategy — fundamentally different from active candidate messaging.
+    passive_list = []
+    if num_passive > 0:
+        passive_archetypes = _get_passive_archetypes(seniority, role_type, num_passive)
+        for i, arch in enumerate(passive_archetypes):
+            # Build a lightweight passive persona from the archetype definition
+            # (no LLM call needed — the archetype itself is the deliverable)
+            passive_list.append({
+                "archetype_name":   arch["archetype_name"],
+                "disc_type":        arch["disc"],
+                "activity_level":   "passive",
+                "motivation":       arch["motivation"],
+                "background_style": arch["background_style"],
+                "latent_trigger":   arch["latent_trigger"],
+                "outreach_angle":   arch["outreach_angle"],
+                "passive_barrier":  arch["passive_barrier"],
+                "reachability":     arch["reachability"],
+                "role":             f"{seniority.title()} {'People Manager' if role_type == 'people_manager' else 'IC'}",
+                "profile":          (f"{seniority.title()} · "
+                                     f"{'People Manager' if role_type == 'people_manager' else 'Individual Contributor'} · "
+                                     f"Currently Employed · Passive"),
+                "skills":           skills,
+                "attributes": {
+                    "seniority":        seniority,
+                    "work_arrangement": arrangement,
+                    "salary":           salary,
+                    "location":         location,
+                    **flags,
+                },
+                "pdl_signals":  pdl_signals,
+                "lightcast":    lightcast,
+                "sparktoro":    sparktoro,
+            })
 
     # ── Channel recommendations (SparkToro-informed) ──────────────────────
     flags_list = [k for k, v in flags.items() if v]
@@ -2302,11 +2873,12 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
             }
             for p in personas_list
         ],
-        "channels":    channels,
-        "competitive": _get_competitive(industry),
-        "ad_strategy": _get_ad_strategy(industry, bilingual=flags.get("bilingual", False)),
-        "li_signals":  li,
-        "generated_at":int(time.time()),
+        "channels":         channels,
+        "competitive":      _get_competitive(industry),
+        "ad_strategy":      _get_ad_strategy(industry, bilingual=flags.get("bilingual", False)),
+        "li_signals":       li,
+        "passive_personas": passive_list,  # Empty list if num_passive=0
+        "generated_at":     int(time.time()),
     }
 
 
@@ -2333,28 +2905,31 @@ def _cluster_jobs(jobs: list) -> list:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def handle_analyze_jd(body: dict) -> dict:
-    """POST /api/persona-builder/analyze-jd — body: {text, url, num_personas?}"""
+    """POST /api/persona-builder/analyze-jd — body: {text, url, numPersonas?, numPassivePersonas?}"""
     text         = body.get("text", "").strip()
     url          = body.get("url", "").strip()
     num_personas = int(body.get("numPersonas", body.get("num_personas", 2)))
-    num_personas = max(2, min(num_personas, 6))  # clamp 2–6
+    num_passive  = int(body.get("numPassivePersonas", body.get("num_passive", 0)))
+    num_personas = max(2, min(num_personas, 6))   # clamp 2–6
+    num_passive  = max(0, min(num_passive,  6))   # clamp 0–6
 
     if not text and not url:
         return {"error": "Provide 'text' or 'url'"}, 400
 
     if url and not text:
-        cache_key = _cache_key("jd_url", f"{url}:{num_personas}")
+        cache_key = _cache_key("jd_url", f"{url}:{num_personas}:{num_passive}")
         if cached := _l1_get(cache_key):
             return cached
         text = _fetch_url(url)
         if not text:
             return {"error": f"Could not fetch content from {url}"}, 502
 
-    cache_key = _cache_key("jd_text", f"{text[:2000]}:{num_personas}")
+    cache_key = _cache_key("jd_text", f"{text[:2000]}:{num_personas}:{num_passive}")
     if cached := _l1_get(cache_key):
         return cached
 
-    result = _build_persona_response(text, "job_description", num_personas=num_personas)
+    result = _build_persona_response(text, "job_description",
+                                     num_personas=num_personas, num_passive=num_passive)
     _l1_set(cache_key, result, ttl=3600)
     return result
 
