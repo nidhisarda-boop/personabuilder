@@ -2201,6 +2201,12 @@ def _generate_persona_llm(signals: dict) -> dict:
                 )
             if "job_quality_issues" not in persona:
                 persona["job_quality_issues"] = []
+            if signals.get("mece_archetype"):
+                arch_disc = signals["mece_archetype"].get("disc", "")
+                if arch_disc:
+                    enforced = arch_disc[0].upper()
+                    if enforced in "DISC":
+                        persona["disc_type"] = enforced
             persona["_llm_provider"] = name
             persona["_used_fallback"] = False
             logger.info(f"Persona generated via {name}")
@@ -2215,6 +2221,103 @@ def _generate_persona_llm(signals: dict) -> dict:
     p["_used_fallback"] = True
     return p
 
+
+
+def _derive_jd_fields(signals: dict, disc: str, archetype_name: str = "") -> dict:
+    industry    = signals.get("industry", "general")
+    seniority   = signals.get("seniority", "mid")
+    skills      = signals.get("skills", [])
+    salary      = signals.get("salary", "")
+    arrangement = signals.get("work_arrangement", "")
+    disc_key    = (disc[0] if disc else "S").upper()
+    top_skill_phrase = f" with {skills[0]}" if skills else ""
+    _INDUSTRY_GOALS = {
+        "tech": [f"Solve non-trivial engineering problems{top_skill_phrase}, not ticket-based maintenance","Work at a scale where architectural decisions have real consequences"],
+        "healthcare": ["Provide patient care in a well-staffed, adequately resourced unit","Clear shift structure with predictable scheduling and reliable handoff protocols"],
+        "logistics": ["Predictable schedule close to home with no last-minute shift changes","Weekly or bi-weekly pay with transparent shift differentials upfront"],
+        "defense": ["Work on classified programs with genuine national-security consequence","Access to up-to-date tooling and infrastructure appropriate to a cleared environment"],
+        "marketing": ["Own a measurable channel or campaign — not just supporting someone else's plan","Budget and authority to run experiments and iterate on results without a 6-week approval chain"],
+        "sales": ["Clean territory with a realistic quota and a transparent OTE structure","A product they can genuinely believe in and sell without over-promising to prospects"],
+        "finance": ["Influence real decisions with their models — not just report on them after the fact","Access to current tooling and clean data, not monthly manual reconciliation"],
+        "hr": ["A strategic seat at the table when the business is making people decisions","Systems and HRIS that don't require workarounds to get basic reporting done"],
+        "general": ["Role clarity: a defined scope with real ownership from day one","A team environment where their background and working style are genuinely valued"],
+    }
+    _DISC_EMOTIONAL = {
+        "D": ["Feel their work drives a measurable result that is visible to the business","Feel trusted with real ownership — not managed through micro-approval chains"],
+        "I": ["Feel genuinely welcomed by the team and part of something people are proud of","Feel their contributions are seen and celebrated, not just tracked in a system"],
+        "S": ["Feel stable — that the environment they join is the one they will still recognise after 90 days","Feel supported by people who invested in their success before they had to prove themselves"],
+        "C": ["Feel their depth of expertise is respected and not overridden by schedule pressure","Feel the quality standards they care about are shared by the team, not merely tolerated"],
+    }
+    skill_ctx = f" — and whether {skills[0]} depth is real and not cosmetic" if skills else ""
+    _INDUSTRY_CONCERN = {
+        "tech":      f"Whether the engineering environment is as technically rigorous as the JD implies{skill_ctx}.",
+        "healthcare":"Whether the unit is actually well-staffed and the culture matches what the posting describes.",
+        "logistics": "Whether schedule stability and pay transparency hold up once they are on the floor.",
+        "defense":   "Whether the program has funding continuity and cleared work is genuinely the day-to-day.",
+        "marketing": "Whether they will have real budget authority or end up as support without ownership of outcomes.",
+        "sales":     "Whether the OTE numbers are realistic for the average rep — not just the top 10% — and whether the product can be sold honestly.",
+        "finance":   "Whether their models will actually inform decisions or get filed away in a shared drive.",
+        "hr":        "Whether the business genuinely treats HR as a strategic function or as an administrative cost centre.",
+        "general":   "Whether the day-to-day environment and growth trajectory match what the JD describes.",
+    }
+    _DISC_ACQUISITION = {
+        "D": f"A specific, outcome-focused post or JD that names deliverables, ownership, and measurable goals for the first 90 days{top_skill_phrase}.",
+        "I": "A peer testimonial or team culture post — ideally from someone in a similar role — showing what it is actually like to work here.",
+        "S": "A detailed, honest job description with a clear 30/60/90 plan, team structure, and what the onboarding experience looks like.",
+        "C": f"Genuine depth in the JD itself — specific scope, tooling, and methodology decisions{top_skill_phrase} — or a first-person post by someone currently doing this role.",
+    }
+    _SENIORITY_GOAL = {
+        "junior":    "Clear onboarding with real mentorship — not a sink-or-swim environment from week one",
+        "mid":       "Defined career milestone path with a timeline they can hold their manager accountable to",
+        "senior":    "Autonomy to make architectural or process decisions without seeking constant approval",
+        "director":  "Reporting line and stakeholder access that genuinely match the scope of the role",
+        "executive": "Organisational mandate and resource allocation that make the strategy achievable",
+    }
+    industry_goals = _INDUSTRY_GOALS.get(industry, _INDUSTRY_GOALS["general"])
+    goal_1 = industry_goals[0]
+    goal_2 = industry_goals[1]
+    if not salary or salary in ("Comp TBD", "Not specified", ""):
+        goal_3 = "Transparent compensation range shared upfront — not revealed only after two rounds of interviews"
+    elif arrangement and "remote" in arrangement.lower() and seniority in ("senior", "director", "executive"):
+        goal_3 = "Remote-first team norms: async communication, documented decisions, no invisible presence penalties"
+    else:
+        goal_3 = _SENIORITY_GOAL.get(seniority, _SENIORITY_GOAL["mid"])
+    return {
+        "functional_goals": [goal_1, goal_2, goal_3],
+        "emotional_goals":  _DISC_EMOTIONAL.get(disc_key, _DISC_EMOTIONAL["S"]),
+        "concern":          _INDUSTRY_CONCERN.get(industry, _INDUSTRY_CONCERN["general"]),
+        "acquisition_trigger": _DISC_ACQUISITION.get(disc_key, _DISC_ACQUISITION["S"]),
+    }
+
+
+def _filter_skills_for_persona(skills: list, disc: str, archetype_name: str = "") -> list:
+    if not skills:
+        return []
+    disc_key = (disc[0] if disc else "S").upper()
+    _HIGH = {
+        "C": ["python","sql","r ","scala","java","rust","go","c++","c#",".net","kotlin","swift","machine learning","deep learning","tensorflow","pytorch","keras","statistics","regression","hypothesis","data science","analytics","modeling","algorithm","excel","tableau","power bi","looker","databricks","spark","hadoop","aws","azure","gcp","kubernetes","docker","terraform","sap","oracle","sas","stata","quickbooks","tally","erp","powerbi","matlab","julia"],
+        "D": ["product","agile","scrum","jira","roadmap","kpi","okr","salesforce","crm","negotiation","closing","pipeline","revenue","leadership","strategy","growth","scaling","hiring","budget","delivery","api","cloud","javascript","react","node"],
+        "S": ["excel","powerpoint","word","notion","confluence","jira","asana","slack","teams","google workspace","sharepoint","workday","adp","greenhouse","bamboohr","hris","payroll","onboarding","training","communication","documentation","process","compliance","hr","recruiting","coordination"],
+        "I": ["marketing","content","seo","sem","social media","linkedin","hubspot","marketo","mailchimp","google analytics","salesforce","crm","pr","communication","presentation","public speaking","community","design","canva","figma","photoshop","video","storytelling","copywriting","brand"],
+    }
+    _LOW = {
+        "C": ["leadership","stakeholder","social media","content","pr","marketing","mailchimp"],
+        "D": ["documentation","statistics","modeling","tdd","unit test","integration test"],
+        "S": ["machine learning","deep learning","algorithm","rust","kubernetes","c++","terraform"],
+        "I": ["kubernetes","terraform","rust","c++","algorithm","statistics","databricks"],
+    }
+    high_fragments = _HIGH.get(disc_key, [])
+    low_fragments  = _LOW.get(disc_key, [])
+    def _score(skill):
+        sl = skill.lower()
+        if any(h in sl or sl in h for h in high_fragments): return 2
+        if any(l in sl or sl in l for l in low_fragments): return 0
+        return 1
+    scored = sorted(enumerate(skills), key=lambda x: (-_score(x[1]), x[0]))
+    filtered = [skills[i] for i, _ in scored if _score(skills[i]) > 0][:5]
+    if len(filtered) < 3:
+        filtered = [skills[i] for i, _ in scored][:5]
+    return filtered
 
 def _rule_based_persona(signals: dict) -> dict:
     """
@@ -2240,17 +2343,7 @@ def _rule_based_persona(signals: dict) -> dict:
             ),
             "core_job":         arch["motivation"],
             "context_trigger":  arch["trigger"],
-            "functional_goals": [
-                "Role clarity and real ownership from day one",
-                "A team environment matching their background style and motivation",
-                "Clear compensation structure with transparent growth milestones",
-            ],
-            "emotional_goals": [
-                "Feel their expertise creates tangible value",
-                "Feel supported and aligned with the team's operating style",
-            ],
-            "concern":             "Whether the day-to-day environment matches what the JD implies.",
-            "acquisition_trigger": "A transparent JD with specific tech/scope detail and honest role expectations.",
+            **_derive_jd_fields(signals, disc, arch.get("archetype_name", "")),
             "primary_message":     f'"{arch["archetype_name"]} — built for this kind of challenge."',
             "background":          arch["background_style"],
             "disc_type":           disc,
@@ -2335,8 +2428,7 @@ def _rule_based_persona(signals: dict) -> dict:
             "profile": f"{signals.get('seniority','mid').title()} · Alternative archetype · {signals.get('location','Unspecified')}",
             "core_job": t2[2],
             "context_trigger": "Reevaluating career trajectory — seeking a role better aligned with long-term goals.",
-            "functional_goals": ["Role clarity and ownership from day one", "A team culture built on trust and low-ego collaboration", "Clear compensation structure with transparent growth milestones"],
-            "emotional_goals": ["Feel their expertise creates tangible value", "Feel supported rather than managed"],
+            **_derive_jd_fields(signals, disc2, t2[1]),
             "concern": t2[3], "acquisition_trigger": t2[4], "primary_message": t2[5],
             "background": "Complementary archetype to the primary persona — different career background, different motivation, same open role.",
             "disc_type": disc2,
@@ -2350,8 +2442,7 @@ def _rule_based_persona(signals: dict) -> dict:
         "name": t[0], "role": t[1],
         "profile": f"{signals.get('seniority','mid').title()} · {signals.get('work_arrangement','On-site')} · {signals.get('location','Unspecified')} · {signals.get('salary','Comp TBD')}",
         "core_job": t[2], "context_trigger": "Hitting a ceiling at current employer — no growth path visible.",
-        "functional_goals": ["Competitive compensation tied to outcomes", "Clear career progression with visible milestones", "High-signal, low-noise work environment"],
-        "emotional_goals": ["Feel their expertise is genuinely valued", "Feel the work has consequence beyond a P&L line"],
+        **_derive_jd_fields(signals, disc, t[1]),
         "concern": t[3], "acquisition_trigger": t[4], "primary_message": t[5],
         "background": "Currently employed but selectively open. Evaluating carefully before making any move. Will read deeply before applying.",
         "disc_type": disc, "disc_implication": "Lead with outcomes and evidence. Name real technologies and situations. Avoid buzzwords and vague culture language.",
@@ -2896,7 +2987,11 @@ def _build_persona_response(text: str, source_label: str, li_signals: dict = Non
         "personas": [
             {
                 **p,
-                "skills":     skills,
+                "skills":     _filter_skills_for_persona(
+                                  skills,
+                                  p.get("disc_type", "S"),
+                                  p.get("name", ""),
+                              ),
                 "publishers": [c["name"] for c in channels],
                 "attributes": {
                     "seniority":       seniority,
