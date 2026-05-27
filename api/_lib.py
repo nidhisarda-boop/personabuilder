@@ -481,8 +481,18 @@ def _rule_based_publishers(industry: str, signals: list) -> list:
                        {"name":"LatPro","tier":"niche","why":"Longest-standing board for bilingual professionals."},
                        {"name":"BeBee","tier":"niche","why":"Affinity hiring platform — strong for bilingual SMB sales roles."},
                        {"name":"Prospanica","tier":"niche","why":"Hispanic professional association events and board."}],
+        "marketing":  [{"name":"Marketing Hire","tier":"niche","why":"Specialist board for marketing roles across digital, content, brand, and growth."},
+                       {"name":"HubSpot Job Board","tier":"niche","why":"Inbound marketing community — strong for content, growth, and demand gen roles."},
+                       {"name":"Built In","tier":"niche","why":"Strong for marketing roles at tech-adjacent companies."}],
+        "sales":      [{"name":"Sales Gravy","tier":"niche","why":"The leading sales-specific job board for quota-carrying roles."},
+                       {"name":"Rainmakers","tier":"niche","why":"Curated platform for B2B sales talent with verified quota attainment."}],
+        "hr":         [{"name":"SHRM HR Jobs","tier":"niche","why":"Society for Human Resource Management's official job board — 325K+ HR members."},
+                       {"name":"HR.com","tier":"niche","why":"2M+ HR community members; strong for HR generalist and specialist roles."},
+                       {"name":"ERE Recruiting Intelligence","tier":"niche","why":"Specialist board for talent acquisition and recruiting ops roles."}],
         "campus":     [{"name":"Handshake","tier":"niche","why":"16M students at 1,400+ universities — the campus recruiting standard."},
-                       {"name":"Chegg Internships","tier":"niche","why":"High-intent student and early career audience."}],
+                       {"name":"Chegg Internships","tier":"niche","why":"High-intent student and early career audience."},
+                       {"name":"Internshala","tier":"niche","why":"Dominant internship and trainee board in South Asia; 16M+ student users."},
+                       {"name":"Naukri Campus","tier":"niche","why":"India's largest campus hiring platform for fresher and management trainee roles."}],
     }
 
     additions = industry_map.get(industry, [])
@@ -490,6 +500,9 @@ def _rule_based_publishers(industry: str, signals: list) -> list:
         additions.extend(industry_map.get("defense", []))
     if "bilingual" in signals:
         additions.extend(industry_map.get("bilingual", []))
+    if "campus" in signals:
+        additions = list(additions)  # copy
+        additions.extend(industry_map.get("campus", []))
 
     return base + additions
 
@@ -658,8 +671,9 @@ SENIORITY_RE = {
     # new\s+grad extended to also catch "new grad campus|program|hire" (not just "new grad engineer")
     # (?:\w+\s+)? allows one optional adjective word so "Entry-Level Software Engineer" matches
     "junior":    r"\bjunior\b|\bintern\b|\binternship\b"
-                 r"|(?:entry.?level|new\s+grad(?:uate)?)\s+(?:\w+\s+)?(?:engineer|developer|analyst|position|role|program|hire|campus|recruit)"
-                 r"|\bassociate\s+engineer\b",
+                 r"|(?:entry.?level|new\s+grad(?:uate)?|fresh\s+grad(?:uate)?)\s+(?:\w+\s+)?(?:engineer|developer|analyst|position|role|program|hire|campus|recruit)"
+                 r"|\bassociate\s+engineer\b"
+                 r"|\btrainee\b|\bfresher\b",
 }
 
 # SKILL_VOCAB: use word-boundary patterns for short/ambiguous names
@@ -717,6 +731,29 @@ SKILL_VOCAB_RE = [
     ("Salesforce",  r"\bSalesforce\b"),
     ("HubSpot",     r"\bHubSpot\b"),
     ("CRM",         r"\bCRM\b"),
+    # ── Accounting & Finance ──────────────────────────────────────────────────
+    ("QuickBooks",     r"\bQuickBooks\b|\bQBO\b"),
+    ("Tally ERP",      r"\bTally\s*(?:ERP|Prime)?\b"),
+    ("SAP FICO",       r"\bSAP\s+(?:FICO|FI|CO|ERP|S/4HANA)\b"),
+    ("Oracle Financials", r"\bOracle\s+(?:Financials|ERP|Cloud|NetSuite|E-Business)\b"),
+    ("Zoho Books",     r"\bZoho\s+Books\b"),
+    ("Xero",           r"\bXero\b"),
+    ("NetSuite",       r"\bNetSuite\b"),
+    # ── Marketing ──────────────────────────────────────────────────────────────
+    ("Google Analytics", r"\bGoogle\s+Analytics\b|\bGA4\b"),
+    ("Google Ads",     r"\bGoogle\s+Ads\b|\bGoogle\s+AdWords\b"),
+    ("Meta Ads",       r"\bMeta\s+(?:Ads|Business\s+Suite)\b|\bFacebook\s+Ads\b"),
+    ("Marketo",        r"\bMarketo\b"),
+    ("Mailchimp",      r"\bMailchimp\b"),
+    ("SEMrush",        r"\bSEM[Rr]ush\b"),
+    ("Ahrefs",         r"\bAhrefs\b"),
+    # ── HR Tools ──────────────────────────────────────────────────────────────
+    ("Workday",        r"\bWorkday\b"),
+    ("ADP",            r"\bADP\b"),
+    ("Greenhouse ATS", r"\bGreenhouse\b(?!\s+gas)"),
+    ("Lever ATS",      r"\bLever\b(?:\s+ATS)?"),
+    ("BambooHR",       r"\bBamboo\s*HR\b"),
+    ("SAP SuccessFactors", r"\bSuccessFactors\b|\bSAP\s+SF\b"),
     ("Dask",        r"\bDask\b"),
     ("Hadoop",      r"\bHadoop\b"),
     ("Scala",       r"\bScala\b"),
@@ -781,15 +818,13 @@ def _extract_salary(text: str) -> str:
     Handles:  $X–$Y  |  $X/hr  |  $Xk–$Yk  |  $X,000–$Y,000/yr
     For multi-location JDs (McLean $229K vs NY $262K), returns first match.
     """
+    _CURR = r"(?:[$₹€£]|USD|INR|GBP|EUR|CAD|AUD)\s*"
     m = re.search(
-        # Range with $ on both sides: $229,900 – $262,400 or $30–$45/hr
-        r"\$[\d,]+\.?\d*[k]?\s*[-–—]\s*\$[\d,]+\.?\d*[k]?(?:\s*/\s*(?:hr|hour|yr|year|annually))?"
-        # Single $ with per-unit: $35.50/hr
-        r"|\$[\d,]+\.?\d*[k]?\s*/\s*(?:hr|hour|yr|year|annually)"
-        # Plain $ amount with k: $85k+  or  $85k
-        r"|\$[\d,]+\.?\d*[k]\+?"
-        # Numeric range without $ sign: 85,000–95,000 (requires nearby salary/compensation context)
-        r"|(?:salary|compensation|pay(?:rate)?)\D{0,20}(\d{2,3},\d{3})\s*[-–—]\s*(\d{2,3},\d{3})",
+        rf"{_CURR}[\d,]+\.?\d*[k]?\s*[-–—]\s*(?:{_CURR})?[\d,]+\.?\d*[k]?(?:\s*/\s*(?:hr|hour|yr|year|annually|month|mo)|\s+(?:annually|per\s+year|per\s+month|per\s+hour))?"
+        rf"|{_CURR}[\d,]+\.?\d*[k]?\s*(?:/\s*(?:hr|hour|yr|year|annually|month|mo)|per\s+(?:hr|hour|year|annum|month))"
+        rf"|{_CURR}[\d,]+\.?\d*[k]\+?"
+        rf"|(?:from|starting\s+at|upto|up\s+to)\s+{_CURR}[\d,]+\.?\d*[k]?"
+        r"|(?:salary|compensation|pay(?:rate)?|ctc)\D{{0,20}}(\d{{2,3}},\d{{3}})\s*[-–—]\s*(\d{{2,3}},\d{{3}})",
         text, re.IGNORECASE,
     )
     if not m:
@@ -884,7 +919,9 @@ def _detect_flags(text: str) -> dict:
         # campus: only flag if this is explicitly a campus/intern/new-grad role, not if "intern" appears in EEO
         "campus":     bool(re.search(
             r"\binternship\b|\bco-?op\b|new\s+grad(?:uate)?\s+(?:program|hire|role|position)"
-            r"|campus\s+recruit|recent\s+graduate",
+            r"|campus\s+recruit|recent\s+graduate"
+            r"|\btrainee\b|\bfresher\b|fresh\s+grad(?:uate)?"
+            r"|management\s+trainee|graduate\s+trainee|entry.?level\s+(?:program|hire|role)",
             text, re.IGNORECASE)),
     }
 
@@ -2546,13 +2583,14 @@ def _rule_based_messaging(disc_type: str, industry: str, role: str) -> list:
                 "cta": "See the full role spec →",
             },
             {
-                "label": "Technical depth (C-type alt)",
-                "headline": f"No shortcuts. No tech debt excuses. Real {industry_noun[0]} engineering.",
+                "label": "Craft standards (C-type alt)",
+                "headline": f"We hold our {industry_noun[0]} work to a standard. Here's what it looks like.",
                 "body": (
-                    f"Full test coverage. Architecture reviews before PRs merge. Retrospectives that actually change things. "
-                    f"If you care how {industry_noun[1]} are built — not just that they ship — you'll fit here."
+                    f"Our processes are documented, not assumed. Our standards are written down and consistently enforced — not just aspirational. "
+                    f"We care as much about how {industry_noun[1]} are done as what gets delivered. "
+                    f"If you've worked somewhere where 'good enough' was the bar and it frustrated you — this team is different."
                 ),
-                "cta": "Read our engineering blog →",
+                "cta": "Read the full role spec →",
             },
             {
                 "label": "Process/transparency (C-type alt 2)",
